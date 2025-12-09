@@ -1,0 +1,32 @@
+1. 填補 title_english
+UPDATE anime 
+SET title_english = title 
+WHERE title_english IS NULL;
+
+2. 從 aired_from 提取 year
+UPDATE anime 
+SET year = strftime('%Y', aired_from)
+WHERE year IS NULL AND aired_from IS NOT NULL;
+
+3.刪除anime genre as "Music","CM","PV"
+在 DB Browser 執行（按順序）：
+sql-- 步驟 1: 刪除 anime_genres 的關聯
+DELETE FROM anime_genres 
+WHERE anime_id IN (
+    SELECT id FROM anime 
+    WHERE type IN ('Music', 'CM', 'PV')
+);
+執行後點「Write Changes」儲存
+
+sql-- 步驟 2: 刪除 anime_studios 的關聯
+DELETE FROM anime_studios 
+WHERE anime_id IN (
+    SELECT id FROM anime 
+    WHERE type IN ('Music', 'CM', 'PV')
+);
+執行後點「Write Changes」儲存
+
+sql-- 步驟 3: 刪除 anime 本體
+DELETE FROM anime 
+WHERE type IN ('Music', 'CM', 'PV');
+執行後點「Write Changes」儲存
