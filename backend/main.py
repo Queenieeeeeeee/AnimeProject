@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func  
-from models.database import get_db, Anime
+from models.database import get_db, Anime, Genre, anime_genres, Studio, anime_studios
 from typing import List
 from datetime import date
 
@@ -34,6 +34,42 @@ def read_root():
             "analytics_trending": "/api/analytics/trending",
             "health": "/health"
         }
+    }
+
+@app.get("/api/anime/latest")
+def get_latest_anime(
+    limit: int = 12,
+    db: Session = Depends(get_db)
+):
+    """Get the latest anime with score - for homepage featured section"""
+    
+    # Get anime from recent years, with score, ordered by year (desc) and members (desc)
+    animes = db.query(Anime).filter(
+        Anime.year >= date.today().year  
+    ).order_by(
+        Anime.year.desc(),
+    ).limit(limit).all()
+    
+    result = []
+    for anime in animes:
+        result.append({
+            "id": anime.id,
+            "mal_id": anime.mal_id,
+            "title": anime.title,
+            "title_english": anime.title_english,
+            "type": anime.type,
+            "episodes": anime.episodes,
+            "score": anime.score,
+            "year": anime.year,
+            "season": anime.season,
+            "members": anime.members,
+            "image_url": anime.image_url
+        })
+    
+    return {
+        "success": True,
+        "total": len(result),
+        "data": result
     }
 
 @app.get("/api/anime")
@@ -470,4 +506,580 @@ def get_trending_analysis(
             }
         },
         "message": "Trending analysis retrieved successfully"
+    }
+
+# =============================================================================
+# Analytics API - Phase 3: Genres Analysis
+# =============================================================================
+# Add this to your backend/main.py after Phase 2 (Trending Analysis)
+
+def calculate_market_potential_score(
+    anime_count: int,
+    avg_score: float,
+    total_members: int,
+    max_count: int,
+    max_members: int
+) -> float:
+    """
+    Calculate market potential score for a genre
+    
+    Formula:
+    - Market size (anime_count): 30%
+    - Quality (avg_score): 30%
+    - Popularity (total_members): 40%
+    """
+    if max_count == 0 or max_members == 0:
+        return 0.0
+    
+    market_size_score = (anime_count / max_count) * 0.3
+    quality_score = (avg_score / 10) * 0.3
+    popularity_score = (total_members / max_members) * 0.4
+    
+    final_score = (market_size_score + quality_score + popularity_score) * 10
+    
+    return round(final_score, 2)
+
+
+@app.get("/api/analytics/genres")
+def get_genres_analysis(
+    sort_by: str = "count",  # count | score | members | market_score
+    order: str = "desc",     # asc | desc
+    db: Session = Depends(get_db)
+):
+    """
+    Genres Analysis API - Analyze genre popularity and market potential
+    
+    Query Parameters:
+    - sort_by: count (anime count) | score (avg score) | members (total members) | market_score
+    - order: asc | desc
+    
+    Features:
+    - Exclude "Hentai" genre
+    - Calculate market potential score
+    - Show top 5 representative anime per genre
+    - Historical trends (anime count by year)
+    """
+    
+    # Validate parameters
+    valid_sort_by = ["count", "score", "members", "market_score"]
+    valid_order = ["asc", "desc"]
+    
+    if sort_by not in valid_sort_by:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid sort_by. Must be one of: {', '.join(valid_sort_by)}"
+        )
+    
+    if order not in valid_order:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid order. Must be one of: {', '.join(valid_order)}"
+        )
+    
+    # Get all genres except Hentai
+    all_genres = db.query(Genre).filter(Genre.name != "Hentai").all()
+    
+    genres_data = []
+    max_count = 0
+    max_members = 0
+    
+    # First pass: Calculate basic stats and find max values
+    for genre in all_genres:
+        # Count anime in this genre
+        anime_count = db.query(Anime).join(
+            anime_genres, Anime.id == anime_genres.c.anime_id
+        ).filter(
+            anime_genres.c.genre_id == genre.id
+        ).count()
+        
+        if anime_count == 0:
+            continue
+        
+        # Calculate average score
+        avg_score = db.query(func.avg(Anime.score)).join(
+            anime_genres, Anime.id == anime_genres.c.anime_id
+        ).filter(
+            anime_genres.c.genre_id == genre.id,
+            Anime.score != None
+        ).scalar()
+        
+        avg_score = float(avg_score) if avg_score else 0.0
+        
+        # Calculate total members
+        total_members = db.query(func.sum(Anime.members)).join(
+            anime_genres, Anime.id == anime_genres.c.anime_id
+        ).filter(
+            anime_genres.c.genre_id == genre.id,
+            Anime.members != None
+        ).scalar()
+        
+        total_members = int(total_members) if total_members else 0
+        
+        # Track max values for scoring
+        max_count = max(max_count, anime_count)
+        max_members = max(max_members, total_members)
+        
+        genres_data.append({
+            "genre": genre,
+            "anime_count": anime_count,
+            "avg_score": avg_score,
+            "total_members": total_members
+        })
+    
+    # Second pass: Calculate market scores and prepare final data
+    result_data = []
+    total_anime = db.query(Anime).count()
+    
+    for data in genres_data:
+        genre = data["genre"]
+        anime_count = data["anime_count"]
+        avg_score = data["avg_score"]
+        total_members = data["total_members"]
+        
+        # Calculate market potential score
+        market_score = calculate_market_potential_score(
+            anime_count=anime_count,
+            avg_score=avg_score,
+            total_members=total_members,
+            max_count=max_count,
+            max_members=max_members
+        )
+        
+        # Calculate average members per anime
+        avg_members = total_members // anime_count if anime_count > 0 else 0
+        
+        # Get top 5 representative anime for this genre
+        top_5_anime = db.query(Anime).join(
+            anime_genres, Anime.id == anime_genres.c.anime_id
+        ).filter(
+            anime_genres.c.genre_id == genre.id,
+            Anime.score != None
+        ).order_by(
+            Anime.score.desc(),
+            Anime.members.desc()
+        ).limit(5).all()
+        
+        top_5_list = []
+        for anime in top_5_anime:
+            top_5_list.append({
+                "id": anime.id,
+                "title": anime.title,
+                "title_english": anime.title_english,
+                "score": anime.score,
+                "members": anime.members,
+                "year": anime.year,
+                "type": anime.type,
+                "image_url": anime.image_url
+            })
+        
+        # Get historical trend (last 10 years)
+        current_year = date.today().year
+        years_range = list(range(current_year - 9, current_year + 1))
+        
+        yearly_trend = []
+        for year in years_range:
+            year_count = db.query(Anime).join(
+                anime_genres, Anime.id == anime_genres.c.anime_id
+            ).filter(
+                anime_genres.c.genre_id == genre.id,
+                Anime.year == year
+            ).count()
+            
+            yearly_trend.append({
+                "year": year,
+                "count": year_count
+            })
+        
+        result_data.append({
+            "id": genre.id,
+            "name": genre.name,
+            "anime_count": anime_count,
+            "average_score": round(avg_score, 2),
+            "total_members": total_members,
+            "average_members_per_anime": avg_members,
+            "market_potential_score": market_score,
+            "percentage_of_total": round(anime_count / total_anime * 100, 2) if total_anime > 0 else 0,
+            "top_5_anime": top_5_list,
+            "historical_trend": yearly_trend,
+            "_sort_values": {
+                "count": anime_count,
+                "score": avg_score,
+                "members": total_members,
+                "market_score": market_score
+            }
+        })
+    
+    # Sort the results
+    sort_key = sort_by if sort_by != "market_score" else "market_score"
+    result_data.sort(
+        key=lambda x: x["_sort_values"][sort_key],
+        reverse=(order == "desc")
+    )
+    
+    # Remove internal sort values before returning
+    for item in result_data:
+        del item["_sort_values"]
+    
+    # Calculate summary statistics
+    total_genres = len(result_data)
+    avg_anime_per_genre = sum(g["anime_count"] for g in result_data) / total_genres if total_genres > 0 else 0
+    
+    # Find top genre by each metric
+    top_by_count = max(result_data, key=lambda x: x["anime_count"])["name"] if result_data else "N/A"
+    top_by_score = max(result_data, key=lambda x: x["average_score"])["name"] if result_data else "N/A"
+    top_by_members = max(result_data, key=lambda x: x["total_members"])["name"] if result_data else "N/A"
+    top_by_market = max(result_data, key=lambda x: x["market_potential_score"])["name"] if result_data else "N/A"
+    
+    return {
+        "success": True,
+        "data": {
+            "total_genres": total_genres,
+            "sort_by": sort_by,
+            "order": order,
+            "summary": {
+                "average_anime_per_genre": round(avg_anime_per_genre, 1),
+                "top_genre_by_count": top_by_count,
+                "top_genre_by_score": top_by_score,
+                "top_genre_by_members": top_by_members,
+                "top_genre_by_market_score": top_by_market
+            },
+            "genres": result_data
+        },
+        "message": f"Genres analysis retrieved successfully (sorted by {sort_by}, {order})"
+    }
+
+# =============================================================================
+# Analytics API - Phase 4: Studios Analysis
+# =============================================================================
+
+def calculate_workload_score(
+    recent_count: int,
+    total_count: int,
+    avg_per_year: float,
+    max_avg_per_year: float,
+    type_count: int,
+    max_type_count: int
+) -> float:
+    """
+    Calculate workload score for a studio
+    
+    Formula:
+    - Recent activity (recent/total): 30%
+    - Production rate (avg per year): 40%
+    - Type diversity (多工能力): 30%
+    """
+    if total_count == 0 or max_avg_per_year == 0 or max_type_count == 0:
+        return 0.0
+    
+    recent_activity = (recent_count / total_count) * 0.3
+    production_rate = (avg_per_year / max_avg_per_year) * 0.4
+    type_diversity = (type_count / max_type_count) * 0.3
+    
+    final_score = (recent_activity + production_rate + type_diversity) * 10
+    
+    return round(final_score, 2)
+
+
+@app.get("/api/analytics/studios")
+def get_studios_analysis(
+    years: int = 5,           # 1-20
+    sort_by: str = "workload", # workload | count | score | members
+    limit: int = 10,           # 10-100
+    db: Session = Depends(get_db)
+):
+    """
+    Studios Analysis API - Find the hardest working studios
+    
+    Query Parameters:
+    - years: How many recent years to analyze (1-20, default: 5)
+    - sort_by: workload | count | score | members
+    - limit: Number of studios to show (10-100, default: 10)
+    
+    Features:
+    - Workload score (辛苦指數)
+    - All anime produced in recent years
+    - Popularity metrics (members, favorites)
+    - Type distribution (TV/Movie/OVA/Special)
+    - Yearly output trend
+    """
+    
+    # Validate parameters
+    if years < 1 or years > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="years must be between 1 and 20"
+        )
+    
+    valid_sort_by = ["workload", "count", "score", "members"]
+    if sort_by not in valid_sort_by:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sort_by. Must be one of: {', '.join(valid_sort_by)}"
+        )
+    
+    if limit < 10 or limit > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be between 10 and 100"
+        )
+    
+    # Calculate year range
+    current_year = date.today().year
+    start_year = current_year - years + 1
+    end_year = current_year
+    years_range = list(range(start_year, end_year + 1))
+    
+    # Get all studios that have at least 1 anime in recent years
+    studios_with_recent_anime = db.query(Studio).join(
+        anime_studios, Studio.id == anime_studios.c.studio_id
+    ).join(
+        Anime, Anime.id == anime_studios.c.anime_id
+    ).filter(
+        Anime.year.in_(years_range)
+    ).distinct().all()
+    
+    studios_data = []
+    max_avg_per_year = 0
+    max_type_count = 0
+    
+    # First pass: Calculate basic stats and find max values
+    for studio in studios_with_recent_anime:
+        # Total anime count (all time)
+        total_count = db.query(Anime).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id
+        ).count()
+        
+        if total_count == 0:
+            continue
+        
+        # Recent anime count
+        recent_count = db.query(Anime).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range)
+        ).count()
+        
+        if recent_count == 0:
+            continue
+        
+        # Calculate average per year
+        avg_per_year = recent_count / years
+        max_avg_per_year = max(max_avg_per_year, avg_per_year)
+        
+        # Type distribution
+        type_dist = db.query(
+            Anime.type,
+            func.count(Anime.id)
+        ).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range)
+        ).group_by(Anime.type).all()
+        
+        type_count = len(type_dist)
+        max_type_count = max(max_type_count, type_count)
+        
+        studios_data.append({
+            "studio": studio,
+            "total_count": total_count,
+            "recent_count": recent_count,
+            "avg_per_year": avg_per_year,
+            "type_count": type_count
+        })
+    
+    # Second pass: Calculate workload scores and prepare final data
+    result_data = []
+    
+    for data in studios_data:
+        studio = data["studio"]
+        total_count = data["total_count"]
+        recent_count = data["recent_count"]
+        avg_per_year = data["avg_per_year"]
+        type_count = data["type_count"]
+        
+        # Calculate workload score
+        workload_score = calculate_workload_score(
+            recent_count=recent_count,
+            total_count=total_count,
+            avg_per_year=avg_per_year,
+            max_avg_per_year=max_avg_per_year,
+            type_count=type_count,
+            max_type_count=max_type_count
+        )
+        
+        # Get all anime from this studio in recent years
+        recent_anime = db.query(Anime).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range)
+        ).order_by(
+            Anime.year.desc(),
+            Anime.score.desc().nullslast()
+        ).all()
+        
+        # Calculate average score
+        avg_score = db.query(func.avg(Anime.score)).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range),
+            Anime.score != None
+        ).scalar()
+        
+        avg_score = float(avg_score) if avg_score else 0.0
+        
+        # Calculate popularity metrics
+        total_members = db.query(func.sum(Anime.members)).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range),
+            Anime.members != None
+        ).scalar()
+        
+        total_members = int(total_members) if total_members else 0
+        
+        total_favorites = db.query(func.sum(Anime.favorites)).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range),
+            Anime.favorites != None
+        ).scalar()
+        
+        total_favorites = int(total_favorites) if total_favorites else 0
+        
+        avg_members = total_members // recent_count if recent_count > 0 else 0
+        avg_favorites = total_favorites // recent_count if recent_count > 0 else 0
+        
+        # Type distribution
+        type_distribution = {}
+        type_dist_data = db.query(
+            Anime.type,
+            func.count(Anime.id)
+        ).join(
+            anime_studios, Anime.id == anime_studios.c.anime_id
+        ).filter(
+            anime_studios.c.studio_id == studio.id,
+            Anime.year.in_(years_range)
+        ).group_by(Anime.type).all()
+        
+        for anime_type, count in type_dist_data:
+            type_distribution[anime_type] = count
+        
+        # Yearly output
+        yearly_output = []
+        for year in sorted(years_range, reverse=True):
+            year_count = db.query(Anime).join(
+                anime_studios, Anime.id == anime_studios.c.anime_id
+            ).filter(
+                anime_studios.c.studio_id == studio.id,
+                Anime.year == year
+            ).count()
+            
+            yearly_output.append({
+                "year": year,
+                "count": year_count
+            })
+        
+        # All anime list with details
+        anime_list = []
+        for anime in recent_anime:
+            anime_list.append({
+                "id": anime.id,
+                "mal_id": anime.mal_id,
+                "title": anime.title,
+                "title_english": anime.title_english,
+                "score": anime.score,
+                "members": anime.members,
+                "favorites": anime.favorites,
+                "year": anime.year,
+                "season": anime.season,
+                "type": anime.type,
+                "episodes": anime.episodes,
+                "image_url": anime.image_url
+            })
+        
+        result_data.append({
+            "id": studio.id,
+            "name": studio.name,
+            "anime_count_total": total_count,
+            "anime_count_recent": recent_count,
+            "average_score": round(avg_score, 2),
+            "workload_score": workload_score,
+            "avg_anime_per_year": round(avg_per_year, 1),
+            "popularity_metrics": {
+                "total_members": total_members,
+                "total_favorites": total_favorites,
+                "avg_members_per_anime": avg_members,
+                "avg_favorites_per_anime": avg_favorites
+            },
+            "type_distribution": type_distribution,
+            "yearly_output": yearly_output,
+            "anime_list": anime_list,
+            "_sort_values": {
+                "workload": workload_score,
+                "count": recent_count,
+                "score": avg_score,
+                "members": total_members
+            }
+        })
+    
+    # Sort the results
+    result_data.sort(
+        key=lambda x: x["_sort_values"][sort_by],
+        reverse=True
+    )
+    
+    # Limit results
+    result_data = result_data[:limit]
+    
+    # Remove internal sort values before returning
+    for item in result_data:
+        del item["_sort_values"]
+    
+    # Calculate summary statistics
+    total_studios_with_recent = len(studios_with_recent_anime)
+    showing = len(result_data)
+    
+    if result_data:
+        total_recent_anime = sum(s["anime_count_recent"] for s in result_data)
+        avg_anime_per_studio = total_recent_anime / showing if showing > 0 else 0
+        
+        top_by_workload = result_data[0]["name"] if sort_by == "workload" else max(result_data, key=lambda x: x["workload_score"])["name"]
+        top_by_count = max(result_data, key=lambda x: x["anime_count_recent"])["name"]
+        top_by_score = max(result_data, key=lambda x: x["average_score"])["name"]
+        top_by_members = max(result_data, key=lambda x: x["popularity_metrics"]["total_members"])["name"]
+    else:
+        avg_anime_per_studio = 0
+        top_by_workload = "N/A"
+        top_by_count = "N/A"
+        top_by_score = "N/A"
+        top_by_members = "N/A"
+    
+    return {
+        "success": True,
+        "data": {
+            "total_studios": total_studios_with_recent,
+            "showing": showing,
+            "time_range": {
+                "years": years,
+                "start_year": start_year,
+                "end_year": end_year
+            },
+            "summary": {
+                "avg_anime_per_studio": round(avg_anime_per_studio, 1),
+                "top_studio_by_workload": top_by_workload,
+                "top_studio_by_count": top_by_count,
+                "top_studio_by_score": top_by_score,
+                "top_studio_by_members": top_by_members
+            },
+            "studios": result_data
+        },
+        "message": f"Studios analysis retrieved successfully (last {years} years, sorted by {sort_by})"
     }
