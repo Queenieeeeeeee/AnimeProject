@@ -1,7 +1,8 @@
-// src/pages/Home.jsx - Updated with Swiper Carousel + Fixed Card Sizes
+// src/pages/Home.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getLatestAnime, searchAnime } from '../services/api';
+import AnimeCard from '../components/AnimeCard';
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -25,7 +26,7 @@ function Home() {
 
   const fetchFeaturedAnime = async () => {
     try {
-      const response = await getLatestAnime(20); // Get 20 latest anime for carousel
+      const response = await getLatestAnime(20);
       setFeaturedAnime(response.data.data);
     } catch (error) {
       console.error('Error fetching latest anime:', error);
@@ -77,46 +78,32 @@ function Home() {
         </form>
       </div>
 
-        {/* Search Results */}
-        {searchResults.length > 0 && (
+      {/* Search Results */}
+      {searchResults.length > 0 && (
         <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Search Results</h2>
             <button 
-                onClick={() => setSearchResults([])} 
-                className="text-sm text-gray-600 hover:text-gray-900"
+              onClick={() => setSearchResults([])} 
+              className="text-sm text-gray-600 hover:text-gray-900"
             >
-                Clear
+              Clear
             </button>
-            </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
             {searchResults.map(anime => (
-                <Link 
-                key={anime.id} 
-                to={`/anime/${anime.id}`}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition group cursor-pointer flex flex-col h-full"
-                >
-                <div className="relative overflow-hidden rounded-t-lg flex-shrink-0">
-                    <img
-                    src={anime.image_url}
-                    alt={anime.title}
-                    className="w-full h-36 object-cover group-hover:scale-105 transition"
-                    onError={(e) => { e.target.src = 'https://via.placeholder.com/150x220?text=No+Image'; }}
-                    />
-                </div>
-                <div className="p-2 flex flex-col flex-grow gap-0">
-                    <h3 className="font-semibold text-xs line-clamp-2 min-h-[2rem]">{anime.title}</h3>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span>⭐ {anime.score || 'N/A'}</span>
-                    <span>{anime.year}</span>
-                    </div>
-                </div>
-                </Link>
+              <AnimeCard
+                key={anime.id}
+                anime={anime}
+                variant="compact"
+                showYear={false}
+                showEpisodes={false}
+              />
             ))}
-            </div>
+          </div>
         </div>
-        )}
+      )}
 
       {/* Latest Anime Carousel */}
       <div className="mb-8">
@@ -151,29 +138,12 @@ function Home() {
             >
               {featuredAnime.map(anime => (
                 <SwiperSlide key={anime.id}>
-                  <Link 
-                    to={`/anime/${anime.id}`}
-                    className="block bg-white rounded-lg shadow hover:shadow-xl transition group cursor-pointer h-full"
-                  >
-                    <div className="relative overflow-hidden rounded-t-lg flex-shrink-0">
-                      <img
-                        src={anime.image_url}
-                        alt={anime.title}
-                        className="w-full h-34 object-cover group-hover:scale-105 transition"
-                        onError={(e) => { e.target.src = 'https://via.placeholder.com/225x318?text=No+Image'; }}
-                      />
-                      {anime.year && (
-                        <div className="absolute top-2 left-2 bg-blue-500/90 text-white px-2 py-1 rounded text-xs font-semibold">
-                          {anime.year}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 flex flex-col flex-grow">
-                      <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem] mb-2">
-                        {anime.title}
-                      </h3>
-                    </div>
-                  </Link>
+                  <AnimeCard
+                    anime={anime}
+                    variant="carousel"
+                    showYear={true}
+                    showEpisodes={false}
+                  />
                 </SwiperSlide>
               ))}
             </Swiper>
@@ -204,6 +174,12 @@ function Home() {
           <div className="text-3xl mb-2">🎯</div>
           <h3 className="text-xl font-bold mb-2">Recommendations</h3>
           <p className="text-purple-100 text-sm">Find similar anime</p>
+        </Link>
+
+        <Link to="/browse" className="block p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">
+          <div className="text-3xl mb-2">🎯</div>
+          <h3 className="text-xl font-bold mb-2">Browse</h3>
+          <p className="text-purple-100 text-sm">Find all anime</p>
         </Link>
 
         <Link to="/analytics/overview" className="block p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">

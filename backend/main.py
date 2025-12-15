@@ -103,6 +103,28 @@ def get_anime_list(
         "data": result
     }
 
+@app.get("/api/anime/mal/{mal_id}")
+def get_anime_by_mal_id(
+    mal_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get anime by MyAnimeList ID - for Relations feature"""
+    anime = db.query(Anime).filter(Anime.mal_id == mal_id).first()
+    
+    if not anime:
+        return None
+    
+    return {
+        "id": anime.id,
+        "mal_id": anime.mal_id,
+        "title": anime.title,
+        "title_english": anime.title_english,
+        "type": anime.type,
+        "score": anime.score,
+        "year": anime.year,
+        "image_url": anime.image_url
+    }
+
 @app.get("/api/anime/{anime_id}")
 def get_anime_by_id(
     anime_id: int,

@@ -3,17 +3,15 @@ Frontend: npm run dev
 Backend: uvicorn main:app --reload
 
 *To-do List*
-1.Complete recommendation system 整體的code要再重新看過(recommendations.py, main.py, recommendations.jsx)
-	出來的作品跟想像中的很不一樣...可能要調權重...	
+1.Complete recommendation system 
+	算是成功但是都只會推續作
+	
    Recommend me an anime? 也許可以去參考其他網站做的
 2.把T-Rex studio 的作品都刪掉
 3.genre 可以點進去會有相關作品
 4.Complete Overview page
 5.Complete Genres page
-6.想給續作一個版面
-	方法 2: Jikan API 的 relations（最準確）
-	python# Jikan API: /anime/{id}/relations
-	# 會回傳 sequel, prequel, side story 等關係
+6.續作的版面滿神奇的 並不會列出全部 比如說part3 只會出現part2 or part4
 7.Carousell 作品會超出框框頁面
 8.collecting anime python code needs to be improved(不要色情 不要音樂這類的)
  

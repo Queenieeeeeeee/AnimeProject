@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getAnimeById } from '../services/api';
+import RelatedWorks from '../components/RelatedWorks';
 
 function AnimeDetail() {
   const { id } = useParams();
@@ -145,43 +146,9 @@ function AnimeDetail() {
               )}
             </div>
 
-            {/* Genres */}
-            {anime.genres && anime.genres.length > 0 && (
-              <div className="mb-6">
-                <div className="text-sm text-gray-600 mb-2">Genres</div>
-                <div className="flex flex-wrap gap-2">
-                  {anime.genres.map(genre => (
-                    <span
-                      key={genre.id}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
-                    >
-                      {genre.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Studios */}
-            {anime.studios && anime.studios.length > 0 && (
-              <div className="mb-6">
-                <div className="text-sm text-gray-600 mb-2">Studios</div>
-                <div className="flex flex-wrap gap-2">
-                  {anime.studios.map(studio => (
-                    <span
-                      key={studio.id}
-                      className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
-                    >
-                      {studio.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Synopsis */}
             {anime.synopsis && (
-              <div>
+              <div className="mb-6">
                 <h3 className="text-lg font-bold mb-2">Synopsis</h3>
                 <p className="text-gray-700 leading-relaxed">{anime.synopsis}</p>
               </div>
@@ -189,7 +156,7 @@ function AnimeDetail() {
 
             {/* Aired Dates */}
             {(anime.aired_from || anime.aired_to) && (
-              <div className="mt-6 pt-6 border-t">
+              <div className="pt-6 border-t">
                 <div className="text-sm text-gray-600 mb-2">Aired</div>
                 <div className="text-gray-700">
                   {anime.aired_from && new Date(anime.aired_from).toLocaleDateString()} 
@@ -199,7 +166,46 @@ function AnimeDetail() {
             )}
           </div>
         </div>
+
+        {/* Genres - Moved outside to full width */}
+        <div className="px-6 pb-6">
+          {anime.genres && anime.genres.length > 0 && (
+            <div className="mb-4">
+              <div className="text-sm text-gray-600 mb-2">Genres</div>
+              <div className="flex flex-wrap gap-2">
+                {anime.genres.map(genre => (
+                  <span
+                    key={genre.id}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                  >
+                    {genre.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Studios - Moved outside to full width */}
+          {anime.studios && anime.studios.length > 0 && (
+            <div>
+              <div className="text-sm text-gray-600 mb-2">Studios</div>
+              <div className="flex flex-wrap gap-2">
+                {anime.studios.map(studio => (
+                  <span
+                    key={studio.id}
+                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                  >
+                    {studio.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Related Works - NEW! */}
+      {anime.mal_id && <RelatedWorks malId={anime.mal_id} />}
     </div>
   );
 }

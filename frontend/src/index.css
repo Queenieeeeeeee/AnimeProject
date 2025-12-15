@@ -21,11 +21,17 @@ code {
 .custom-swiper-container {
   position: relative;
   padding-bottom: 5rem;
-  overflow: visible;
+  overflow: hidden;
+  width: 100%;
 }
 
 .custom-swiper-container .swiper {
   overflow: visible;
+  width: 100%;
+}
+
+.custom-swiper-container .swiper-wrapper {
+  width: 100%;
 }
 
 /* 創建一個 flex 容器來包住所有控制元素 */

@@ -1,7 +1,7 @@
 // src/pages/Browse.jsx
 import { useState, useEffect } from 'react';
 import { getAnimeList, searchAnime } from '../services/api';
-import { Link } from 'react-router-dom';
+import AnimeCard from '../components/AnimeCard';
 
 function Browse() {
   const [animeList, setAnimeList] = useState([]);
@@ -114,40 +114,15 @@ function Browse() {
         </div>
       ) : (
         <div className="grid md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
-            {animeList.map(anime => (
-            <Link 
-                key={anime.id}
-                to={`/anime/${anime.id}`}
-                className="bg-white rounded-lg shadow overflow-hidden hover:shadow-xl transition cursor-pointer"
-            >
-                <img
-                src={anime.image_url}
-                alt={anime.title}
-                className="w-48 h-72 object-cover"
-                onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/225x350?text=No+Image';
-                }}
-                />
-                <div className="p-3">
-                <h3 
-                    className="font-semibold text-sm line-clamp-2 mb-2" 
-                    title={anime.title}
-                >
-                    {anime.title}
-                </h3>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
-                    ⭐ {anime.score || 'N/A'}
-                    </span>
-                    <span className="text-xs">{anime.type}</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                    {anime.year || 'Unknown'}
-                    {anime.episodes && ` • ${anime.episodes} eps`}
-                </div>
-                </div>
-            </Link>
-            ))}
+          {animeList.map(anime => (
+            <AnimeCard
+              key={anime.id}
+              anime={anime}
+              variant="grid"
+              showYear={false}
+              showEpisodes={true}
+            />
+          ))}
         </div>
       )}
 
