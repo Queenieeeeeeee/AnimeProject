@@ -16,3 +16,61 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Custom Swiper Navigation & Pagination */
+.custom-swiper-container {
+  position: relative;
+  padding-bottom: 5rem;
+  overflow: visible;
+}
+
+.custom-swiper-container .swiper {
+  overflow: visible;
+}
+
+/* 創建一個 flex 容器來包住所有控制元素 */
+.custom-swiper-controls {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%; /* 👈 相對於整個頁面置中 */
+  transform: translateX(-50%); /* 👈 真正置中 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  z-index: 10;
+  width: auto; /* 👈 自適應寬度 */
+}
+
+.custom-swiper-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0; /* 不要被壓縮 */
+}
+
+.custom-swiper-button:hover {
+  background: #f3f4f6;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.custom-swiper-button.swiper-button-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.custom-swiper-pagination {
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 3rem;
+  text-align: center;
+  flex-shrink: 0; /* 不要被壓縮 */
+}

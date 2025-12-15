@@ -1,0 +1,42 @@
+*PowerShell Command*
+Frontend: npm run dev
+Backend: uvicorn main:app --reload
+
+*To-do List*
+1.Complete recommendation system 整體的code要再重新看過(recommendations.py, main.py, recommendations.jsx)
+	出來的作品跟想像中的很不一樣...可能要調權重...	
+   Recommend me an anime? 也許可以去參考其他網站做的
+2.把T-Rex studio 的作品都刪掉
+3.genre 可以點進去會有相關作品
+4.Complete Overview page
+5.Complete Genres page
+6.想給續作一個版面
+	方法 2: Jikan API 的 relations（最準確）
+	python# Jikan API: /anime/{id}/relations
+	# 會回傳 sequel, prequel, side story 等關係
+7.Carousell 作品會超出框框頁面
+8.collecting anime python code needs to be improved(不要色情 不要音樂這類的)
+ 
+*Info*
+Frontend: React + Vite + Tailwind CSS (單頁應用)
+Backend: FastAPI + SQLAlchemy + SQLite
+資料: 16,105 筆動畫資料 (2005-2026)
+
+*Checking pages*
+檢查完畢
+1.Navbar.jsx
+2.Home.jsx
+3.api.js
+4.App.jsx
+5.main.jsx
+6.BackToTop.jsx
+
+
+還沒檢查
+1.AnimeDetail.jsx
+2.Recommendations.jsx
+3.Sutdios.jsx
+4.index.css
+
+最後改
+1.index.html

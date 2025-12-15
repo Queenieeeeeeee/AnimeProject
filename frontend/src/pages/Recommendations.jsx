@@ -1,25 +1,30 @@
 // src/pages/Recommendations.jsx
 import { useState } from 'react';
-import { searchAnime } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { searchAnime, getRecommendations } from '../services/api';
 
 function Recommendations() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedAnime, setSelectedAnime] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setError(null);
     try {
       const response = await searchAnime(searchQuery, 10);
       setSearchResults(response.data.data);
     } catch (error) {
       console.error('Error searching:', error);
+      setError('Failed to search anime. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -29,32 +34,35 @@ function Recommendations() {
     setSelectedAnime(anime);
     setSearchResults([]);
     setSearchQuery('');
+    setRecommendations([]); // Clear previous recommendations
+    setError(null);
   };
 
   const handleGetRecommendations = async () => {
     if (!selectedAnime) return;
 
     setIsGenerating(true);
+    setError(null);
     
-    // TODO: Call recommendation API when backend is ready
-    // For now, show placeholder
-    setTimeout(() => {
-      setRecommendations([
-        {
-          id: 1,
-          title: "Recommendation 1",
-          match_score: 95,
-          reason: "Similar genres and high rating"
-        },
-        {
-          id: 2,
-          title: "Recommendation 2",
-          match_score: 88,
-          reason: "Similar studio and themes"
-        }
-      ]);
+    try {
+      // Call the real recommendation API
+      const response = await getRecommendations(selectedAnime.id, 10);
+      
+      if (response.success && response.recommendations) {
+        setRecommendations(response.recommendations);
+      } else {
+        setError('No recommendations found. Please try another anime.');
+      }
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      setError('Failed to get recommendations. Please try again.');
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
+  };
+
+  const handleAnimeClick = (animeId) => {
+    navigate(`/anime/${animeId}`);
   };
 
   return (
@@ -64,9 +72,16 @@ function Recommendations() {
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg p-6 mb-8">
         <h2 className="text-2xl font-bold mb-2">Find Your Next Favorite Anime</h2>
         <p className="text-purple-100">
-          Tell us what you like, and we'll recommend similar anime using collaborative filtering
+          Tell us what you like, and we'll recommend similar anime based on genres, ratings, studios, and more
         </p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-800">⚠️ {error}</p>
+        </div>
+      )}
 
       {/* Search Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -152,7 +167,10 @@ function Recommendations() {
               </div>
             </div>
             <button
-              onClick={() => setSelectedAnime(null)}
+              onClick={() => {
+                setSelectedAnime(null);
+                setRecommendations([]);
+              }}
               className="text-gray-400 hover:text-gray-600"
             >
               ✕
@@ -173,32 +191,95 @@ function Recommendations() {
       {recommendations.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="font-semibold text-lg mb-4">
-            📊 Recommended Anime
+            📊 Recommended Anime ({recommendations.length})
           </h3>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-blue-800">
-              ℹ️ <strong>Note:</strong> This is a placeholder. The recommendation API will be implemented next!
-            </p>
-          </div>
 
           <div className="grid gap-4">
             {recommendations.map((rec, index) => (
-              <div key={rec.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-semibold">
-                    #{index + 1} {rec.title}
-                  </h4>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {rec.match_score}%
+              <div 
+                key={rec.id} 
+                className="border rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer"
+                onClick={() => handleAnimeClick(rec.id)}
+              >
+                <div className="flex gap-4">
+                  {/* Image */}
+                  <img
+                    src={rec.image_url}
+                    alt={rec.title}
+                    className="w-20 h-28 object-cover rounded"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/80x112?text=No+Image';
+                    }}
+                  />
+                  
+                  {/* Content */}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="font-semibold text-lg">
+                          #{index + 1} {rec.title}
+                        </h4>
+                        {rec.title_english && rec.title_english !== rec.title && (
+                          <p className="text-sm text-gray-600">{rec.title_english}</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {Math.round(rec.similarity_score * 100)}%
+                        </div>
+                        <div className="text-xs text-gray-600">Match</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-600">Match</div>
+                    
+                    {/* Anime Info */}
+                    <div className="flex gap-3 text-sm text-gray-600 mb-3">
+                      <span>{rec.year}</span>
+                      <span>{rec.type}</span>
+                      {rec.score && <span>⭐ {rec.score}</span>}
+                    </div>
+                    
+                    {/* Genres */}
+                    {rec.genres && rec.genres.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {rec.genres.map((genre) => (
+                          <span 
+                            key={genre.id}
+                            className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded"
+                          >
+                            {genre.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Match Details */}
+                    <div className="bg-gray-50 rounded p-3">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">Match Breakdown:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-600">Genre:</span>
+                          <span className="ml-1 font-semibold">{Math.round(rec.match_details.genre * 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Score:</span>
+                          <span className="ml-1 font-semibold">{Math.round(rec.match_details.score * 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Demo:</span>
+                          <span className="ml-1 font-semibold">{Math.round(rec.match_details.demographic * 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Studio:</span>
+                          <span className="ml-1 font-semibold">{Math.round(rec.match_details.studio * 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Year:</span>
+                          <span className="ml-1 font-semibold">{Math.round(rec.match_details.year * 100)}%</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600">
-                  <strong>Reason:</strong> {rec.reason}
-                </p>
               </div>
             ))}
           </div>
@@ -213,8 +294,15 @@ function Recommendations() {
             <li>Search for an anime you enjoyed</li>
             <li>Select it from the results</li>
             <li>Click "Get Recommendations" to see similar anime</li>
-            <li>Our collaborative filtering algorithm finds anime liked by people with similar tastes</li>
+            <li>Our algorithm finds anime with similar characteristics:</li>
           </ol>
+          <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-blue-700">
+            <li>Matching genres and themes (50%)</li>
+            <li>Similar ratings and quality (25%)</li>
+            <li>Target demographic (10%)</li>
+            <li>Same studios or producers (10%)</li>
+            <li>Related release periods (5%)</li>
+          </ul>
         </div>
       )}
     </div>

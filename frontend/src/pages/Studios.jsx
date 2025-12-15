@@ -1,6 +1,7 @@
 // src/pages/Studios.jsx
 import { useState, useEffect } from 'react';
 import { getStudios } from '../services/api';
+import { Link } from 'react-router-dom';
 
 function Studios() {
   const [studios, setStudios] = useState([]);
@@ -193,8 +194,9 @@ function Studios() {
               </summary>
               <div className="mt-4 grid gap-3 max-h-96 overflow-y-auto">
                 {studio.anime_list.map(anime => (
-                  <div 
-                    key={anime.id} 
+                  <Link 
+                    key={anime.id}
+                    to={`/anime/${anime.id}`} 
                     className="flex gap-4 p-3 border rounded hover:bg-gray-50 transition"
                   >
                     <img 
@@ -231,7 +233,7 @@ function Studios() {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </details>

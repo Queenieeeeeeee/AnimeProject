@@ -2,9 +2,13 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from database import Anime, Genre, Studio, anime_genres, anime_studios
 import pandas as pd
+import os
 
 # Connect to database
-engine = create_engine('sqlite:///anime.db')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'backend', 'anime.db')
+engine = create_engine(f'sqlite:///{DB_PATH}')
+
 Session = sessionmaker(bind=engine)
 session = Session()
 
@@ -35,12 +39,16 @@ null_checks = {
     'episodes': session.query(Anime).filter(Anime.episodes == None).count(),
     'score': session.query(Anime).filter(Anime.score == None).count(),
     'rank': session.query(Anime).filter(Anime.rank == None).count(),
+    'popularity': session.query(Anime).filter(Anime.popularity == None).count(),    
+    'members': session.query(Anime).filter(Anime.members == None).count(),    
+    'favorites': session.query(Anime).filter(Anime.favorites == None).count(), 
     'year': session.query(Anime).filter(Anime.year == None).count(),
     'season': session.query(Anime).filter(Anime.season == None).count(),
     'synopsis': session.query(Anime).filter(Anime.synopsis == None).count(),
     'aired_from': session.query(Anime).filter(Anime.aired_from == None).count(),
     'aired_to': session.query(Anime).filter(Anime.aired_to == None).count(),
     'demographic': session.query(Anime).filter(Anime.demographic == None).count(),
+
 }
 
 for field, null_count in null_checks.items():

@@ -124,50 +124,77 @@ function Home() {
         {loading ? (
           <div className="text-center py-12">Loading...</div>
         ) : (
-          <Swiper
-            modules={[Navigation, Pagination]}
-            spaceBetween={16}
-            slidesPerView={7}
-            navigation
-            pagination={{ clickable: true }}
-            breakpoints={{
-              320: { slidesPerView: 2, spaceBetween: 10 },
-              640: { slidesPerView: 3, spaceBetween: 12 },
-              768: { slidesPerView: 4, spaceBetween: 14 },
-              1024: { slidesPerView: 5, spaceBetween: 16 },
-              1280: { slidesPerView: 6, spaceBetween: 16 },
-              1536: { slidesPerView: 7, spaceBetween: 16 }
-            }}
-            className="pb-12"
-          >
-            {featuredAnime.map(anime => (
-            <SwiperSlide key={anime.id}>
-                <Link 
-                to={`/anime/${anime.id}`}
-                className="block bg-white rounded-lg shadow hover:shadow-xl transition group cursor-pointer h-full"
-                >
-                <div className="relative overflow-hidden rounded-t-lg flex-shrink-0">
-                    <img
-                    src={anime.image_url}
-                    alt={anime.title}
-                    className="w-full h-34 object-cover group-hover:scale-105 transition"
-                    onError={(e) => { e.target.src = 'https://via.placeholder.com/225x318?text=No+Image'; }}
-                    />
-                    {anime.year && (
-                    <div className="absolute top-2 left-2 bg-blue-500/90 text-white px-2 py-1 rounded text-xs font-semibold">
-                        {anime.year}
+          <div className="custom-swiper-container">
+            <Swiper
+              modules={[Navigation, Pagination]}
+              spaceBetween={16}
+              slidesPerView={7}
+              navigation={{
+                nextEl: '.custom-swiper-next',
+                prevEl: '.custom-swiper-prev',
+              }}
+              pagination={{ 
+                el: '.custom-swiper-pagination',
+                type:'fraction',
+                clickable: true,
+                dynamicBullets: true,
+                dynamicMainBullets:3
+              }}
+              breakpoints={{
+                320: { slidesPerView: 2, spaceBetween: 10 },
+                640: { slidesPerView: 3, spaceBetween: 12 },
+                768: { slidesPerView: 4, spaceBetween: 14 },
+                1024: { slidesPerView: 5, spaceBetween: 16 },
+                1280: { slidesPerView: 6, spaceBetween: 16 },
+                1536: { slidesPerView: 7, spaceBetween: 16 }
+              }}
+            >
+              {featuredAnime.map(anime => (
+                <SwiperSlide key={anime.id}>
+                  <Link 
+                    to={`/anime/${anime.id}`}
+                    className="block bg-white rounded-lg shadow hover:shadow-xl transition group cursor-pointer h-full"
+                  >
+                    <div className="relative overflow-hidden rounded-t-lg flex-shrink-0">
+                      <img
+                        src={anime.image_url}
+                        alt={anime.title}
+                        className="w-full h-34 object-cover group-hover:scale-105 transition"
+                        onError={(e) => { e.target.src = 'https://via.placeholder.com/225x318?text=No+Image'; }}
+                      />
+                      {anime.year && (
+                        <div className="absolute top-2 left-2 bg-blue-500/90 text-white px-2 py-1 rounded text-xs font-semibold">
+                          {anime.year}
+                        </div>
+                      )}
                     </div>
-                    )}
-                </div>
-                <div className="p-3 flex flex-col flex-grow">
-                    <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem] mb-2">
-                    {anime.title}
-                    </h3>
-                </div>
-                </Link>
-            </SwiperSlide>
-            ))}
-          </Swiper>
+                    <div className="p-3 flex flex-col flex-grow">
+                      <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem] mb-2">
+                        {anime.title}
+                      </h3>
+                    </div>
+                  </Link>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+
+            {/* Custom Navigation Buttons */}
+            <div className="custom-swiper-controls">
+              <div className="custom-swiper-button custom-swiper-prev">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </div>
+              
+              <div className="custom-swiper-pagination"></div>
+              
+              <div className="custom-swiper-button custom-swiper-next">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

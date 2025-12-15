@@ -30,3 +30,66 @@ sql-- 步驟 3: 刪除 anime 本體
 DELETE FROM anime 
 WHERE type IN ('Music', 'CM', 'PV');
 執行後點「Write Changes」儲存
+
+*Delete Hentai genre*
+-- 1. 先看有多少筆會被刪除（確認用）
+SELECT COUNT(*) as total_hentai_anime
+FROM anime a
+INNER JOIN anime_genres ag ON a.id = ag.anime_id
+INNER JOIN genres g ON ag.genre_id = g.id
+WHERE g.name = 'Hentai';
+
+-- 2. 找出所有 Hentai anime 的 id（保存這個結果，等等要用）
+SELECT DISTINCT a.id
+FROM anime a
+INNER JOIN anime_genres ag ON a.id = ag.anime_id
+INNER JOIN genres g ON ag.genre_id = g.id
+WHERE g.name = 'Hentai';
+
+-- 3. 開始刪除：先刪除 anime_genres 關聯
+DELETE FROM anime_genres 
+WHERE anime_id IN (
+    SELECT DISTINCT a.id
+    FROM anime a
+    INNER JOIN anime_genres ag ON a.id = ag.anime_id
+    INNER JOIN genres g ON ag.genre_id = g.id
+    WHERE g.name = 'Hentai'
+);
+
+-- 4. 刪除 anime_studios 關聯
+DELETE FROM anime_studios 
+WHERE anime_id IN (
+    SELECT DISTINCT a.id
+    FROM anime a
+    INNER JOIN anime_genres ag ON a.id = ag.anime_id
+    INNER JOIN genres g ON ag.genre_id = g.id
+    WHERE g.name = 'Hentai'
+);
+
+-- 5. 刪除 anime 本身
+DELETE FROM anime 
+WHERE id IN (
+    SELECT DISTINCT a.id
+    FROM anime a
+    INNER JOIN anime_genres ag ON a.id = ag.anime_id
+    INNER JOIN genres g ON ag.genre_id = g.id
+    WHERE g.name = 'Hentai'
+);
+
+-- 6. （可選）刪除 Hentai genre 本身
+DELETE FROM genres WHERE name = 'Hentai';
+
+*Studio Delete*
+-- 1. 先查看哪些 studios 沒有 anime（確認用）
+SELECT s.id, s.mal_id, s.name
+FROM studios s
+LEFT JOIN anime_studios ast ON s.id = ast.studio_id
+WHERE ast.studio_id IS NULL
+ORDER BY s.name;
+
+-- 2. 刪除沒有 anime 的 studios
+DELETE FROM studios
+WHERE id NOT IN (
+    SELECT DISTINCT studio_id 
+    FROM anime_studios
+);

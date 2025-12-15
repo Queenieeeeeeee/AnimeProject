@@ -183,7 +183,6 @@ def search_anime(
         "data": result
     }
 
-
 # =============================================================================
 # Analytics API - Phase 1: Overview
 # =============================================================================
@@ -305,7 +304,6 @@ def get_analytics_overview(db: Session = Depends(get_db)):
         "message": "Overview statistics retrieved successfully"
     }
 
-
 # =============================================================================
 # Analytics API - Phase 2: Trending Analysis
 # =============================================================================
@@ -338,7 +336,7 @@ def calculate_merchandising_score(anime, current_year=2025):
 
 @app.get("/api/analytics/trending")
 def get_trending_analysis(
-    year: int = 2026,
+    year: int = date.today().year,
     db: Session = Depends(get_db)
 ):
     """Trending Analysis API - Identify hot titles and classic IPs"""
@@ -538,7 +536,6 @@ def calculate_market_potential_score(
     final_score = (market_size_score + quality_score + popularity_score) * 10
     
     return round(final_score, 2)
-
 
 @app.get("/api/analytics/genres")
 def get_genres_analysis(
@@ -778,7 +775,6 @@ def calculate_workload_score(
     final_score = (recent_activity + production_rate + type_diversity) * 10
     
     return round(final_score, 2)
-
 
 @app.get("/api/analytics/studios")
 def get_studios_analysis(
@@ -1082,4 +1078,76 @@ def get_studios_analysis(
             "studios": result_data
         },
         "message": f"Studios analysis retrieved successfully (last {years} years, sorted by {sort_by})"
+    }
+
+# =============================================================================
+# Recommendations API
+# =============================================================================
+from recommendations import get_recommendations
+
+@app.get("/api/anime/{anime_id}/recommendations")
+def get_anime_recommendations(
+    anime_id: int,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Get anime recommendations based on content similarity
+    
+    Args:
+        anime_id: The ID of the target anime
+        limit: Number of recommendations to return (default: 10)
+    
+    Returns:
+        JSON containing target anime and list of similar anime with similarity scores
+        
+    Algorithm:
+        - Genre overlap: 50%
+        - Score similarity: 25%
+        - Demographic match: 10%
+        - Studio match: 10%
+        - Year proximity: 5%
+    """
+    result = get_recommendations(db, anime_id, limit)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Anime not found")
+    
+    target_anime = result['target_anime']
+    recommendations = result['recommendations']
+    
+    # Format response
+    return {
+        "success": True,
+        "target_anime": {
+            "id": target_anime.id,
+            "mal_id": target_anime.mal_id,
+            "title": target_anime.title,
+            "title_english": target_anime.title_english,
+            "image_url": target_anime.image_url,
+            "year": target_anime.year,
+            "type": target_anime.type,
+            "score": target_anime.score,
+            "genres": [{"id": g.id, "name": g.name} for g in target_anime.genres],
+            "studios": [{"id": s.id, "name": s.name} for s in target_anime.studios]
+        },
+        "recommendations": [
+            {
+                "id": rec['anime'].id,
+                "mal_id": rec['anime'].mal_id,
+                "title": rec['anime'].title,
+                "title_english": rec['anime'].title_english,
+                "image_url": rec['anime'].image_url,
+                "year": rec['anime'].year,
+                "type": rec['anime'].type,
+                "score": rec['anime'].score,
+                "genres": [{"id": g.id, "name": g.name} for g in rec['anime'].genres],
+                "studios": [{"id": s.id, "name": s.name} for s in rec['anime'].studios],
+                "similarity_score": rec['similarity']['total_similarity'],
+                "match_details": rec['similarity']['details'],
+                "weights_used": rec['similarity']['weights_used']
+            }
+            for rec in recommendations
+        ],
+        "message": f"Found {len(recommendations)} similar anime"
     }

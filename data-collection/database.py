@@ -67,7 +67,11 @@ class Studio(Base):
     animes = relationship('Anime', secondary=anime_studios, back_populates='studios')
 
 # Create Database
-engine = create_engine('sqlite:///anime.db')
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'backend', 'anime.db')
+
+engine = create_engine(f'sqlite:///{DB_PATH}')
 Base.metadata.create_all(engine)
 
 print("Database has been created successfuly!")

@@ -119,21 +119,25 @@ function AnimeDetail() {
                 <div className="text-sm text-gray-600">Episodes</div>
                 <div className="font-semibold">{anime.episodes || 'Unknown'}</div>
               </div>
-              <div>
-                <div className="text-sm text-gray-600">Year</div>
-                <div className="font-semibold">{anime.year || 'Unknown'}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600">Season</div>
-                <div className="font-semibold capitalize">{anime.season || 'Unknown'}</div>
-              </div>
-              {anime.demographic && (
+              {anime.year != null && (
+                <div>
+                  <div className="text-sm text-gray-600">Year</div>
+                  <div className="font-semibold">{anime.year}</div>
+                </div>
+              )}
+              {anime.season != null && anime.season !== '' && (
+                <div>
+                  <div className="text-sm text-gray-600">Season</div>
+                  <div className="font-semibold capitalize">{anime.season}</div>
+                </div>
+              )}
+              {anime.demographic != null && anime.demographic !== '' && (
                 <div>
                   <div className="text-sm text-gray-600">Demographic</div>
                   <div className="font-semibold">{anime.demographic}</div>
                 </div>
               )}
-              {anime.favorites && (
+              {anime.favorites != null && anime.favorites > 0 && (
                 <div>
                   <div className="text-sm text-gray-600">Favorites</div>
                   <div className="font-semibold">{anime.favorites.toLocaleString()}</div>

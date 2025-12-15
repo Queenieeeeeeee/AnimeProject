@@ -6,7 +6,7 @@ function Navbar() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   return (
-    <nav className="bg-blue-600 text-white shadow-lg">
+    <nav className="fixed top-0 left-0 right-0 bg-blue-600 text-white z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="text-xl font-bold hover:text-blue-200 transition">
@@ -15,6 +15,9 @@ function Navbar() {
           <div className="flex gap-10 items-center">
             <Link to="/" className="hover:text-blue-200 transition">
               Home
+            </Link>
+            <Link to="/browse" className="hover:text-blue-200 transition">
+              Browse
             </Link>
             <Link to="/recommendations" className="hover:text-blue-200 transition">
               Recommendations

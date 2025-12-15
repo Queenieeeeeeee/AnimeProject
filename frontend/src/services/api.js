@@ -4,7 +4,7 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api`,  // 👈 加上 /api
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,51 +12,59 @@ const api = axios.create({
 
 // Anime APIs
 export const getAnimeList = (limit = 10, offset = 0) => {
-  return api.get('/api/anime', {
+  return api.get('/anime', {  // 👈 移除 /api (因為 baseURL 已經有了)
     params: { limit, offset }
   });
 };
 
 export const getAnimeById = (id) => {
-  return api.get(`/api/anime/${id}`);
+  return api.get(`/anime/${id}`);  // 👈 移除 /api
 };
 
 export const searchAnime = (query, limit = 10, offset = 0) => {
-  return api.get('/api/search', {
+  return api.get('/search', {  // 👈 移除 /api
     params: { q: query, limit, offset }
   });
 };
 
-// Get latest anime for homepage
 export const getLatestAnime = (limit = 12) => {
-  return api.get('/api/anime/latest', {
+  return api.get('/anime/latest', {  // 👈 移除 /api
     params: { limit }
   });
 };
 
 // Analytics APIs
 export const getAnalyticsOverview = () => {
-  return api.get('/api/analytics/overview');
+  return api.get('/analytics/overview');  // 👈 移除 /api
 };
 
-export const getTrendingAnalysis = (year = 2026) => {
-  return api.get('/api/analytics/trending', {
+export const getTrendingAnalysis = (year) => {
+  return api.get('/analytics/trending', {  // 👈 移除 /api
     params: { year }
   });
 };
 
-// Studios API
 export const getStudios = (years = 5, sortBy = 'workload', limit = 10) => {
-  return api.get('/api/analytics/studios', {
+  return api.get('/analytics/studios', {  // 👈 移除 /api
     params: { years, sort_by: sortBy, limit }
   });
 };
 
-// Genres API (if you have one)
-export const getGenres = (years = 5, sortBy = 'potential', limit = 20) => {
-  return api.get('/api/analytics/genres', {
-    params: { years, sort_by: sortBy, limit }
+export const getGenres = (sortBy = 'market_score', order = 'desc') => {
+  return api.get('/analytics/genres', {  // 👈 移除 /api
+    params: { 
+      sort_by: sortBy,
+      order: order
+    }
   });
+};
+
+// Recommendations API
+export const getRecommendations = async (animeId, limit = 10) => {
+  const response = await api.get(`/anime/${animeId}/recommendations`, {
+    params: { limit }
+  });
+  return response.data;
 };
 
 export default api;
