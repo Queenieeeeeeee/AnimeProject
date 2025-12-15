@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Browse from './pages/Browse'
-import Recommendations from './pages/Recommendations';
+import Discover from './pages/Discover';
 import Studios from './pages/Studios';
 import AnimeDetail from './pages/AnimeDetail';
 import BackToTop from './components/BackToTop'
@@ -17,7 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
-            <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/discover" element={<Discover />} />
             <Route path="/anime/:id" element={<AnimeDetail />} />
             
             {/* Analytics Routes */}

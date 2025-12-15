@@ -21,12 +21,6 @@ export const getAnimeById = (id) => {
   return api.get(`/anime/${id}`);  // 👈 移除 /api
 };
 
-export const searchAnime = (query, limit = 10, offset = 0) => {
-  return api.get('/search', {  // 👈 移除 /api
-    params: { q: query, limit, offset }
-  });
-};
-
 export const getLatestAnime = (limit = 12) => {
   return api.get('/anime/latest', {  // 👈 移除 /api
     params: { limit }
@@ -50,15 +44,6 @@ export const getStudios = (years = 5, sortBy = 'workload', limit = 10) => {
   });
 };
 
-export const getGenres = (sortBy = 'market_score', order = 'desc') => {
-  return api.get('/analytics/genres', {  // 👈 移除 /api
-    params: { 
-      sort_by: sortBy,
-      order: order
-    }
-  });
-};
-
 // Recommendations API
 export const getRecommendations = async (animeId, limit = 10) => {
   const response = await api.get(`/anime/${animeId}/recommendations`, {
@@ -67,4 +52,19 @@ export const getRecommendations = async (animeId, limit = 10) => {
   return response.data;
 };
 
+// Advanced search with filters
+export const searchAnime = (params) => {
+  // params can include: q, genre, min_score, max_score, year, type, sort_by, order, limit, offset
+  return api.get('/search', { params });
+};
+
+// Get all genres for filter dropdown
+export const getGenres = () => {
+  return api.get('/genres');
+};
+
+// Get random anime
+export const getRandomAnime = () => {
+  return api.get('/anime/random');
+};
 export default api;

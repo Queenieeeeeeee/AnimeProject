@@ -1,7 +1,7 @@
 // src/pages/Home.jsx
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { getLatestAnime, searchAnime } from '../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { getLatestAnime, searchAnime, getRandomAnime } from '../services/api';
 import AnimeCard from '../components/AnimeCard';
 
 // Import Swiper React components
@@ -14,11 +14,13 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 function Home() {
+  const navigate = useNavigate();
   const [featuredAnime, setFeaturedAnime] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isGettingRandom, setIsGettingRandom] = useState(false);
 
   useEffect(() => {
     fetchFeaturedAnime();
@@ -50,6 +52,19 @@ function Home() {
     }
   };
 
+  const handleRandomPick = async () => {
+    setIsGettingRandom(true);
+    try {
+      const response = await getRandomAnime();
+      const animeId = response.data.data.id;
+      navigate(`/anime/${animeId}`);
+    } catch (error) {
+      console.error('Error getting random anime:', error);
+    } finally {
+      setIsGettingRandom(false);
+    }
+  };
+
   return (
     <div>
       {/* Hero Section */}
@@ -58,7 +73,7 @@ function Home() {
           Discover Your Next Favorite Anime
         </h1>
         
-        <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
+        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-3">
           <div className="flex gap-2">
             <input
               type="text"
@@ -76,6 +91,20 @@ function Home() {
             </button>
           </div>
         </form>
+
+        {/* Random Pick Button */}
+        <div className="text-center">
+          <button
+            onClick={handleRandomPick}
+            disabled={isGettingRandom}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition disabled:opacity-50 backdrop-blur-sm border border-white/30"
+          >
+            <span className="text-lg">🎲</span>
+            <span className="text-sm font-medium">
+              {isGettingRandom ? 'Finding...' : "I'm Feeling Lucky"}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Search Results */}
@@ -170,10 +199,10 @@ function Home() {
 
       {/* Quick Access Cards */}
       <div className="grid md:grid-cols-3 gap-4">
-        <Link to="/recommendations" className="block p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">
+        <Link to="/discover" className="block p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">
           <div className="text-3xl mb-2">🎯</div>
-          <h3 className="text-xl font-bold mb-2">Recommendations</h3>
-          <p className="text-purple-100 text-sm">Find similar anime</p>
+          <h3 className="text-xl font-bold mb-2">Discover</h3>
+          <p className="text-purple-100 text-sm">Find your next anime</p>
         </Link>
 
         <Link to="/browse" className="block p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">

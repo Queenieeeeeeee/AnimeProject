@@ -19,8 +19,8 @@ function Navbar() {
             <Link to="/browse" className="hover:text-blue-200 transition">
               Browse
             </Link>
-            <Link to="/recommendations" className="hover:text-blue-200 transition">
-              Recommendations
+            <Link to="/discover" className="hover:text-blue-200 transition">
+              Discover
             </Link>
             
             {/* Analytics Dropdown */}
