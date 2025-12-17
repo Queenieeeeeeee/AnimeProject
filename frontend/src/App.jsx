@@ -1,10 +1,10 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import SearchBar from './components/SearchBar';
 import Home from './pages/Home';
 import Browse from './pages/Browse'
 import Discover from './pages/Discover';
-import Studios from './pages/Studios';
 import AnimeDetail from './pages/AnimeDetail';
 import BackToTop from './components/BackToTop'
 
@@ -13,6 +13,9 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-gray-100">
         <Navbar />
+        <div className="max-w-7xl mx-auto px-4 pt-6">
+          <SearchBar />
+        </div>
         <main className="container mx-auto px-4 py-8 pt-24">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -21,7 +24,7 @@ function App() {
             <Route path="/anime/:id" element={<AnimeDetail />} />
             
             {/* Analytics Routes */}
-            <Route path="/analytics/studios" element={<Studios />} />
+            <Route path="/analytics/studios" element={<div className="text-center text-2xl mt-20">Studio - Coming Soon</div>} />
             <Route path="/analytics/overview" element={<div className="text-center text-2xl mt-20">Overview - Coming Soon</div>} />
             <Route path="/analytics/genres" element={<div className="text-center text-2xl mt-20">Genres - Coming Soon</div>} />
           </Routes>

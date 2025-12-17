@@ -1,23 +1,27 @@
+// src/pages/Browse.jsx - 支援多選版本
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getAnimeList, searchAnime, getGenres } from '../services/api';
 import AnimeCard from '../components/AnimeCard';
+import FilterTags from '../components/FilterTags';
 
 function Browse() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [animeList, setAnimeList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [genres, setGenres] = useState([]);
   
-  // Search and filter states
-  const [searchQuery, setSearchQuery] = useState('');
+  // Search and filter states - 從 URL 初始化
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [filters, setFilters] = useState({
-    genre: '',
-    min_score: '',
-    max_score: '',
-    year: '',
-    type: '',
-    sort_by: 'score',
-    order: 'desc'
+    genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
+    min_score: searchParams.get('min_score') || '',
+    max_score: searchParams.get('max_score') || '',
+    years: searchParams.get('years')?.split(',').filter(Boolean) || [],
+    types: searchParams.get('types')?.split(',').filter(Boolean) || [],
+    sort_by: searchParams.get('sort_by') || 'score',
+    order: searchParams.get('order') || 'desc'
   });
   
   // Pagination
@@ -30,10 +34,17 @@ function Browse() {
     fetchGenres();
   }, []);
 
-  // Fetch anime when offset or filters change
+  // 監聽 URL 參數變化和分頁
   useEffect(() => {
-    fetchAnime();
-  }, [offset]);
+    const hasSearchParams = searchParams.toString().length > 0;
+    if (hasSearchParams) {
+      // 有搜尋參數,執行搜尋
+      performSearch();
+    } else {
+      // 沒有搜尋參數,顯示全部
+      fetchAnime();
+    }
+  }, [searchParams, offset]);
 
   const fetchGenres = async () => {
     try {
@@ -57,24 +68,21 @@ function Browse() {
     }
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    setOffset(0); // Reset to first page
-    
+  // 執行搜尋的函數
+  const performSearch = async () => {
     setLoading(true);
     try {
-      // Build params object
       const params = {
         limit,
-        offset: 0,
-        ...(searchQuery.trim() && { q: searchQuery }),
-        ...(filters.genre && { genre: filters.genre }),
-        ...(filters.min_score && { min_score: parseFloat(filters.min_score) }),
-        ...(filters.max_score && { max_score: parseFloat(filters.max_score) }),
-        ...(filters.year && { year: parseInt(filters.year) }),
-        ...(filters.type && { type: filters.type }),
-        sort_by: filters.sort_by,
-        order: filters.order
+        offset,
+        ...(searchParams.get('q') && { q: searchParams.get('q') }),
+        ...(searchParams.get('genres') && { genres: searchParams.get('genres') }),
+        ...(searchParams.get('min_score') && { min_score: parseFloat(searchParams.get('min_score')) }),
+        ...(searchParams.get('max_score') && { max_score: parseFloat(searchParams.get('max_score')) }),
+        ...(searchParams.get('years') && { years: searchParams.get('years') }),
+        ...(searchParams.get('types') && { types: searchParams.get('types') }),
+        sort_by: searchParams.get('sort_by') || 'score',
+        order: searchParams.get('order') || 'desc'
       };
       
       const response = await searchAnime(params);
@@ -87,19 +95,38 @@ function Browse() {
     }
   };
 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    setOffset(0);
+    
+    // 更新 URL 參數
+    const params = new URLSearchParams();
+    
+    if (searchQuery.trim()) params.append('q', searchQuery);
+    if (filters.genres.length > 0) params.append('genres', filters.genres.join(','));
+    if (filters.min_score) params.append('min_score', filters.min_score);
+    if (filters.max_score) params.append('max_score', filters.max_score);
+    if (filters.years.length > 0) params.append('years', filters.years.join(','));
+    if (filters.types.length > 0) params.append('types', filters.types.join(','));
+    params.append('sort_by', filters.sort_by);
+    params.append('order', filters.order);
+    
+    setSearchParams(params);
+  };
+
   const handleClear = () => {
     setSearchQuery('');
     setFilters({
-      genre: '',
+      genres: [],
       min_score: '',
       max_score: '',
-      year: '',
-      type: '',
+      years: [],
+      types: [],
       sort_by: 'score',
       order: 'desc'
     });
     setOffset(0);
-    fetchAnime();
+    setSearchParams({});  // 清除 URL 參數
   };
 
   const handleFilterChange = (field, value) => {
@@ -109,13 +136,46 @@ function Browse() {
     }));
   };
 
-  const handleNextPage = () => {
-    setOffset(prev => prev + limit);
-    window.scrollTo(0, 0);
+  // Remove individual filter from tags
+  const handleRemoveFilter = (field) => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    if (field === 'searchQuery') {
+      newParams.delete('q');
+      setSearchQuery('');
+    } else if (field === 'sort') {
+      // Reset sort to default
+      newParams.set('sort_by', 'score');
+      newParams.set('order', 'desc');
+      setFilters(prev => ({
+        ...prev,
+        sort_by: 'score',
+        order: 'desc'
+      }));
+    } else if (field === 'genres' || field === 'types' || field === 'years') {
+      // Clear array filters
+      newParams.delete(field);
+      setFilters(prev => ({
+        ...prev,
+        [field]: []
+      }));
+    } else {
+      // Clear single value filters
+      newParams.delete(field);
+      setFilters(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+    
+    // Reset to first page when removing filter
+    setOffset(0);
+    setSearchParams(newParams);
   };
 
-  const handlePrevPage = () => {
-    setOffset(prev => Math.max(0, prev - limit));
+  const handlePageChange = (pageNum) => {
+    const newOffset = (pageNum - 1) * limit;
+    setOffset(newOffset);
     window.scrollTo(0, 0);
   };
 
@@ -123,204 +183,62 @@ function Browse() {
   const totalPages = Math.ceil(total / limit);
 
   // Check if any filters are active
-  const hasActiveFilters = searchQuery || filters.genre || filters.min_score || 
-                          filters.max_score || filters.year || filters.type;
+  const hasActiveFilters = searchQuery || filters.genres.length > 0 || filters.min_score || 
+                          filters.max_score || filters.years.length > 0 || filters.types.length > 0;
+
+  // 判斷是否在搜尋模式
+  const isSearchMode = searchParams.toString().length > 0;
+
+  // Prepare filters object for FilterTags component
+  const currentFilters = {
+    searchQuery: searchParams.get('q') || '',
+    genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
+    types: searchParams.get('types')?.split(',').filter(Boolean) || [],
+    years: searchParams.get('years')?.split(',').filter(Boolean) || [],
+    min_score: searchParams.get('min_score') || '',
+    max_score: searchParams.get('max_score') || '',
+    sort_by: searchParams.get('sort_by') || 'score',
+    order: searchParams.get('order') || 'desc',
+  };
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Browse Anime</h1>
-
-      {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <form onSubmit={handleSearch}>
-          {/* Basic Search */}
-          <div className="flex gap-4 mb-4">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search anime by title..."
-              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-            >
-              Advanced {showAdvanced ? '▲' : '▼'}
-            </button>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-
-          {/* Advanced Filters */}
-          {showAdvanced && (
-            <div className="pt-4 border-t space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {/* Genre */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Genre
-                  </label>
-                  <select
-                    value={filters.genre}
-                    onChange={(e) => handleFilterChange('genre', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">All Genres</option>
-                    {genres.map(genre => (
-                      <option key={genre.id} value={genre.name}>
-                        {genre.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type
-                  </label>
-                  <select
-                    value={filters.type}
-                    onChange={(e) => handleFilterChange('type', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">All Types</option>
-                    <option value="TV">TV</option>
-                    <option value="Movie">Movie</option>
-                    <option value="OVA">OVA</option>
-                    <option value="ONA">ONA</option>
-                    <option value="Special">Special</option>
-                    <option value="Music">Music</option>
-                  </select>
-                </div>
-
-                {/* Year */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Year
-                  </label>
-                  <input
-                    type="number"
-                    value={filters.year}
-                    onChange={(e) => handleFilterChange('year', e.target.value)}
-                    placeholder="e.g., 2024"
-                    min="1960"
-                    max={new Date().getFullYear() + 1}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Sort By */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sort By
-                  </label>
-                  <select
-                    value={filters.sort_by}
-                    onChange={(e) => handleFilterChange('sort_by', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="score">Score</option>
-                    <option value="members">Popularity</option>
-                    <option value="year">Year</option>
-                    <option value="title">Title</option>
-                  </select>
-                </div>
-
-                {/* Min Score */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Min Score
-                  </label>
-                  <input
-                    type="number"
-                    value={filters.min_score}
-                    onChange={(e) => handleFilterChange('min_score', e.target.value)}
-                    placeholder="0.0"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Max Score */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Max Score
-                  </label>
-                  <input
-                    type="number"
-                    value={filters.max_score}
-                    onChange={(e) => handleFilterChange('max_score', e.target.value)}
-                    placeholder="10.0"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Order */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Order
-                  </label>
-                  <select
-                    value={filters.order}
-                    onChange={(e) => handleFilterChange('order', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="desc">Descending</option>
-                    <option value="asc">Ascending</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Apply Filters Button */}
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </div>
-          )}
-        </form>
-      </div>
+      {/* Filter Tags Display - 只在有篩選條件時顯示 */}
+      {isSearchMode && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 mb-6">
+          <FilterTags
+            filters={currentFilters}
+            onRemoveFilter={handleRemoveFilter}
+            onClearAll={handleClear}
+          />
+        </div>
+      )}
 
       {/* Results Info */}
       <div className="mb-4 text-gray-600">
         Showing {offset + 1} - {Math.min(offset + limit, total)} of {total.toLocaleString()} anime
-        {hasActiveFilters && ' (filtered)'}
+        {isSearchMode && ' (search results)'}
       </div>
 
       {/* Anime Grid */}
       {loading ? (
         <div className="text-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <div className="text-xl">Loading anime...</div>
         </div>
       ) : animeList.length === 0 ? (
         <div className="text-center py-20">
-          <div className="text-xl text-gray-600">No anime found</div>
-          <p className="text-gray-500 mt-2">Try adjusting your filters</p>
+          <div className="text-6xl mb-4">😢</div>
+          <div className="text-xl text-gray-600 mb-2">No anime found</div>
+          <p className="text-gray-500">Try adjusting your search or filters</p>
+          {isSearchMode && (
+            <button
+              onClick={handleClear}
+              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
@@ -336,27 +254,93 @@ function Browse() {
         </div>
       )}
 
-      {/* Pagination */}
-      {!loading && animeList.length > 0 && (
-        <div className="flex items-center justify-center gap-4 py-8">
+      {/* Pagination Controls - 智能版 */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 mb-8">
+          {/* Previous Button */}
           <button
-            onClick={handlePrevPage}
-            disabled={offset === 0}
-            className="px-6 py-2 bg-white border rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition
+              ${currentPage === 1
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+              }
+            `}
           >
-            ← Previous
+            Previous
           </button>
-          
-          <div className="text-gray-600">
-            Page {currentPage} of {totalPages}
+
+          {/* Page Selection - Dropdown or Input based on total pages */}
+          <div className="flex items-center gap-2">
+            {/* Show dropdown if pages <= 20 */}
+            {totalPages <= 20 ? (
+              <>
+                <span className="text-gray-600">Page</span>
+                <select
+                  value={currentPage}
+                  onChange={(e) => handlePageChange(Number(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-purple-600 bg-white cursor-pointer"
+                >
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                    <option key={pageNum} value={pageNum}>
+                      {pageNum}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-gray-600">
+                  of <span className="font-semibold">{totalPages}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                {/* Show input if pages > 20 */}
+                <span className="text-gray-600">Page</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  defaultValue={currentPage}
+                  onBlur={(e) => {
+                    const value = Number(e.target.value);
+                    if (value >= 1 && value <= totalPages) {
+                      handlePageChange(value);
+                    } else {
+                      e.target.value = currentPage;
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const value = Number(e.target.value);
+                      if (value >= 1 && value <= totalPages) {
+                        handlePageChange(value);
+                        e.target.blur();
+                      }
+                    }
+                  }}
+                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-purple-600"
+                />
+                <span className="text-gray-600">
+                  of <span className="font-semibold">{totalPages}</span>
+                </span>
+              </>
+            )}
           </div>
-          
+
+          {/* Next Button */}
           <button
-            onClick={handleNextPage}
-            disabled={offset + limit >= total}
-            className="px-6 py-2 bg-white border rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition
+              ${currentPage === totalPages
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+              }
+            `}
           >
-            Next →
+            Next
           </button>
         </div>
       )}

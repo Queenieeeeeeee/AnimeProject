@@ -3,11 +3,15 @@ Analyze anime database statistics
 Run this script in your backend directory
 """
 
+from sqlalchemy import create_engine
 import sqlite3
 import sys
+import os
 
 # Database path
-DB_PATH = "anime.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'backend', 'anime.db')
+engine = create_engine(f'sqlite:///{DB_PATH}')
 
 def execute_query(cursor, query, description):
     """Execute a query and print results"""

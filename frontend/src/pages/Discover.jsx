@@ -1,7 +1,9 @@
-// src/pages/Recommendations.jsx
+// src/pages/Discover.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/AnimeCard';
+import {getGenresList,getStudiosList,getPopularAnime,getTopRatedAnime,getHiddenGems,getLatestRecommendations,
+  getTrendingAnime,getAnimeByGenre,getAnimeByStudio} from '../services/api';
 
 function Discover() {
   const navigate = useNavigate();
@@ -16,6 +18,12 @@ function Discover() {
   const [studiosList, setStudiosList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 20;
+
+  // Calculate total pages
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   // Main categories configuration
   const mainCategories = [
@@ -99,18 +107,17 @@ function Discover() {
     }
   }, [activeMainCategory]);
 
-  // Fetch recommendations when category/subcategory changes
+  // Fetch recommendations when category/subcategory/page changes
   useEffect(() => {
     fetchRecommendations();
-  }, [activeMainCategory, activeSubCategory, selectedGenre, selectedStudio]);
+  }, [activeMainCategory, activeSubCategory, selectedGenre, selectedStudio, currentPage]); // 加上 currentPage
 
   const fetchGenresList = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/recommendations/genres/list');
-      const data = await response.json();
+      const response = await getGenresList();
+      const data = response.data; 
       if (data.success) {
         setGenresList(data.data);
-        // Set first genre as default
         if (data.data.length > 0 && !selectedGenre) {
           setSelectedGenre(data.data[0].name);
         }
@@ -122,8 +129,8 @@ function Discover() {
 
   const fetchStudiosList = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/recommendations/studios/list');
-      const data = await response.json();
+      const response = await getStudiosList();
+      const data = await response.data;
       if (data.success) {
         setStudiosList(data.data);
         // Set first studio as default
@@ -144,47 +151,41 @@ function Discover() {
     setError(null);
 
     try {
-      let endpoint = '';
-
-      // Determine endpoint based on category type
+      const offset = (currentPage - 1) * itemsPerPage;
+      let response;
+      
+      // 根據類別調用對應的 API function
       if (category.type === 'single') {
-        endpoint = category.endpoint;
+        if (category.id === 'popular') {
+          response = await getPopularAnime(itemsPerPage, offset);
+        }
       } else if (category.type === 'multi') {
-        const subcat = category.subcategories.find(s => s.id === activeSubCategory);
-        if (subcat) {
-          endpoint = subcat.endpoint;
-        } else {
-          // Default to first subcategory
-          endpoint = category.subcategories[0].endpoint;
-          setActiveSubCategory(category.subcategories[0].id);
+        if (activeSubCategory === 'top-rated') {
+          response = await getTopRatedAnime(itemsPerPage, offset);
+        } else if (activeSubCategory === 'hidden-gems') {
+          response = await getHiddenGems(itemsPerPage, offset);
+        } else if (activeSubCategory === 'latest') {
+          response = await getLatestRecommendations(itemsPerPage, offset);
+        } else if (activeSubCategory === 'trending') {
+          response = await getTrendingAnime(itemsPerPage, offset);
         }
       } else if (category.type === 'dropdown') {
         if (category.id === 'genre' && selectedGenre) {
-          endpoint = `/api/recommendations/genre/${encodeURIComponent(selectedGenre)}`;
+          response = await getAnimeByGenre(selectedGenre, itemsPerPage, offset);
         } else if (category.id === 'studio' && selectedStudio) {
-          endpoint = `/api/recommendations/studio/${encodeURIComponent(selectedStudio)}`;
-        } else {
-          setIsLoading(false);
-          return;
+          response = await getAnimeByStudio(selectedStudio, itemsPerPage, offset);
         }
       }
-
-      const response = await fetch(`http://localhost:8000${endpoint}?limit=20`);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch recommendations');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       
       if (data.success) {
         setRecommendations(data.data);
-      } else {
-        setError('Failed to load recommendations');
+        setTotalItems(data.total);
       }
     } catch (error) {
       console.error('Error fetching recommendations:', error);
-      setError('Failed to load recommendations. Please try again.');
+      setError('Failed to load recommendations.');
     } finally {
       setIsLoading(false);
     }
@@ -193,6 +194,7 @@ function Discover() {
   const handleMainCategoryChange = (categoryId) => {
     setActiveMainCategory(categoryId);
     setActiveSubCategory(null);
+    setCurrentPage(1); // 重置頁碼
     setError(null);
 
     const category = mainCategories.find(c => c.id === categoryId);
@@ -205,17 +207,26 @@ function Discover() {
 
   const handleSubCategoryChange = (subCategoryId) => {
     setActiveSubCategory(subCategoryId);
+    setCurrentPage(1); // 重置頁碼
     setError(null);
   };
 
   const handleGenreChange = (e) => {
     setSelectedGenre(e.target.value);
+    setCurrentPage(1); // 重置頁碼
     setError(null);
   };
 
   const handleStudioChange = (e) => {
     setSelectedStudio(e.target.value);
+    setCurrentPage(1); // 重置頁碼
     setError(null);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Get current category info for display
@@ -378,7 +389,7 @@ function Discover() {
             <h2 className="text-xl font-semibold">
               {currentCategory.name}
               <span className="text-gray-500 font-normal ml-2">
-                ({recommendations.length} anime)
+                ({totalItems} total)
               </span>
             </h2>
           </div>
@@ -389,7 +400,99 @@ function Discover() {
               <AnimeCard key={anime.id} anime={anime} />
             ))}
           </div>
-        </div>
+
+          {/* Pagination Controls - 智能版 */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 mb-8">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`
+                    px-4 py-2 rounded-lg font-medium transition
+                    ${currentPage === 1
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }
+                  `}
+                >
+                  Previous
+                </button>
+
+                {/* Page Selection - Dropdown or Input based on total pages */}
+                <div className="flex items-center gap-2">
+                  {/* Show dropdown if pages <= 20 */}
+                  {totalPages <= 20 ? (
+                    <>
+                      <span className="text-gray-600">Page</span>
+                      <select
+                        value={currentPage}
+                        onChange={(e) => handlePageChange(Number(e.target.value))}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-purple-600 bg-white cursor-pointer"
+                      >
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                          <option key={pageNum} value={pageNum}>
+                            {pageNum}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-gray-600">
+                        of <span className="font-semibold">{totalPages}</span>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {/* Show input if pages > 20 */}
+                      <span className="text-gray-600">Page</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max={totalPages}
+                        defaultValue={currentPage}
+                        onBlur={(e) => {
+                          const value = Number(e.target.value);
+                          if (value >= 1 && value <= totalPages) {
+                            handlePageChange(value);
+                          } else {
+                            e.target.value = currentPage;
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Allow Enter key to jump to page
+                          if (e.key === 'Enter') {
+                            const value = Number(e.target.value);
+                            if (value >= 1 && value <= totalPages) {
+                              handlePageChange(value);
+                              e.target.blur();
+                            }
+                          }
+                        }}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-purple-600"
+                      />
+                      <span className="text-gray-600">
+                        of <span className="font-semibold">{totalPages}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`
+                    px-4 py-2 rounded-lg font-medium transition
+                    ${currentPage === totalPages
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }
+                  `}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
       )}
 
       {/* Empty State */}

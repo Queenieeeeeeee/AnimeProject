@@ -1,8 +1,12 @@
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
-from database import Anime, Genre, Studio
+from database import Anime
+import os
 
-engine = create_engine('sqlite:///anime.db')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'backend', 'anime.db')
+engine = create_engine(f'sqlite:///{DB_PATH}')
+
 Session = sessionmaker(bind=engine)
 session = Session()
 
