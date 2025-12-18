@@ -5,7 +5,6 @@ Backend: uvicorn main:app --reload
 *To-do List*
 1.clear search 沒有真的clear 不會clear 到search anime by title 那個place holder 那邊
 4.續作的版面滿神奇的 並不會列出全部 比如說part3 只會出現part2 or part4
-5.collecting anime python code needs to be improved(不要色情 不要音樂這類的)
  
 *Info*
 Frontend: React + Vite + Tailwind CSS (單頁應用)
