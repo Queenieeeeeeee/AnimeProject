@@ -104,7 +104,7 @@ function Home() {
           <p className="text-blue-100 text-sm">Explore all anime</p>
         </Link>
 
-        <Link to="/analytics/overview" className="block p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">
+        <Link to="/analytics" className="block p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow hover:shadow-xl transition transform hover:-translate-y-1">
           <div className="text-3xl mb-2">📊</div>
           <h3 className="text-xl font-bold mb-2">Analytics</h3>
           <p className="text-green-100 text-sm">Market trends & insights</p>

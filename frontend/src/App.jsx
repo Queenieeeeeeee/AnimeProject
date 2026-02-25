@@ -2,33 +2,32 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import SearchBar from './components/SearchBar';
+import Footer from './components/Footer';
 import Home from './pages/Home';
-import Browse from './pages/Browse'
+import Browse from './pages/Browse';
 import Discover from './pages/Discover';
 import AnimeDetail from './pages/AnimeDetail';
-import BackToTop from './components/BackToTop'
+import BackToTop from './components/BackToTop';
+import Analytics from './pages/Analytics';
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-100 flex flex-col">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 pt-6">
+        <div className="max-w-7xl mx-auto px-4 pt-6 w-full">
           <SearchBar />
         </div>
-        <main className="container mx-auto px-4 py-8 pt-24">
+        <main className="container mx-auto px-4 py-8 pt-24 flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/anime/:id" element={<AnimeDetail />} />
-            
-            {/* Analytics Routes */}
-            <Route path="/analytics/studios" element={<div className="text-center text-2xl mt-20">Studio - Coming Soon</div>} />
-            <Route path="/analytics/overview" element={<div className="text-center text-2xl mt-20">Overview - Coming Soon</div>} />
-            <Route path="/analytics/genres" element={<div className="text-center text-2xl mt-20">Genres - Coming Soon</div>} />
+            <Route path="/analytics" element={<Analytics />} />
           </Routes>
         </main>
+        <Footer />
         <BackToTop />
       </div>
     </BrowserRouter>

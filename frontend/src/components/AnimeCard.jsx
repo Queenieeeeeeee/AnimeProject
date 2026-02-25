@@ -1,11 +1,12 @@
 // src/components/AnimeCard.jsx
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
+import { FALLBACK_ANIME_IMAGE } from '../constants';
 
 function AnimeCard({ anime, variant = 'grid', showYear = false, showEpisodes = false }) {
   // Fallback for missing data
   const title = anime.title || anime.title_english || 'Unknown Title';
-  const imageUrl = anime.image_url || 'https://via.placeholder.com/225x318?text=No+Image';
+  const imageUrl = anime.image_url || FALLBACK_ANIME_IMAGE;
   const score = anime.score || 'N/A';
   const year = anime.year || 'Unknown';
   const type = anime.type || '';
@@ -44,7 +45,7 @@ function AnimeCard({ anime, variant = 'grid', showYear = false, showEpisodes = f
           alt={title}
           className={style.image}
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/225x318?text=No+Image';
+            e.target.src = FALLBACK_ANIME_IMAGE;
           }}
         />
         

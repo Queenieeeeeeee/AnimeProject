@@ -1,7 +1,7 @@
-// src/pages/Browse.jsx - 支援多選版本
+// src/pages/Browse.jsx - Fixed version (no duplicate useEffect)
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getAnimeList, searchAnime, getGenres } from '../services/api';
+import { getAnimeList, searchAnime } from '../services/api';
 import AnimeCard from '../components/AnimeCard';
 import FilterTags from '../components/FilterTags';
 
@@ -9,55 +9,61 @@ function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [animeList, setAnimeList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [genres, setGenres] = useState([]);
+  const [total, setTotal] = useState(0);
   
-  // Search and filter states - 從 URL 初始化
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  // Get current page from URL
+  const currentPage = parseInt(searchParams.get('page') || '1');
+  const [limit] = useState(24);
+  
+  // Search and filter states - synced with URL
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [filters, setFilters] = useState({
-    genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
-    min_score: searchParams.get('min_score') || '',
-    max_score: searchParams.get('max_score') || '',
-    years: searchParams.get('years')?.split(',').filter(Boolean) || [],
-    types: searchParams.get('types')?.split(',').filter(Boolean) || [],
-    sort_by: searchParams.get('sort_by') || 'score',
-    order: searchParams.get('order') || 'desc'
+    genres: [],
+    min_score: '',
+    max_score: '',
+    years: [],
+    types: [],
+    sort_by: 'score',
+    order: 'desc'
   });
-  
-  // Pagination
-  const [limit] = useState(24);
-  const [offset, setOffset] = useState(0);
-  const [total, setTotal] = useState(0);
 
-  // Load genres on mount
+  // Sync state with URL params
   useEffect(() => {
-    fetchGenres();
-  }, []);
+    setSearchQuery(searchParams.get('q') || '');
+    setFilters({
+      genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
+      min_score: searchParams.get('min_score') || '',
+      max_score: searchParams.get('max_score') || '',
+      years: searchParams.get('years')?.split(',').filter(Boolean) || [],
+      types: searchParams.get('types')?.split(',').filter(Boolean) || [],
+      sort_by: searchParams.get('sort_by') || 'score',
+      order: searchParams.get('order') || 'desc'
+    });
+  }, [searchParams]);
 
-  // 監聽 URL 參數變化和分頁
+  // Auto-close advanced search when there are no search params (after clear)
   useEffect(() => {
-    const hasSearchParams = searchParams.toString().length > 0;
+    const hasSearchParams = Array.from(searchParams.keys()).some(key => key !== 'page');
+    if (!hasSearchParams && showAdvanced) {
+      setShowAdvanced(false);
+    }
+  }, [searchParams]);
+
+  // ✅ FIXED: Single useEffect for fetching data
+  useEffect(() => {
+    const hasSearchParams = Array.from(searchParams.keys()).some(key => key !== 'page');
     if (hasSearchParams) {
-      // 有搜尋參數,執行搜尋
       performSearch();
     } else {
-      // 沒有搜尋參數,顯示全部
       fetchAnime();
     }
-  }, [searchParams, offset]);
-
-  const fetchGenres = async () => {
-    try {
-      const response = await getGenres();
-      setGenres(response.data.data);
-    } catch (error) {
-      console.error('Error fetching genres:', error);
-    }
-  };
+  }, [searchParams]); // This will trigger whenever URL params change
 
   const fetchAnime = async () => {
     setLoading(true);
     try {
+      const offset = (currentPage - 1) * limit;
       const response = await getAnimeList(limit, offset);
       setAnimeList(response.data.data);
       setTotal(response.data.total);
@@ -68,10 +74,10 @@ function Browse() {
     }
   };
 
-  // 執行搜尋的函數
   const performSearch = async () => {
     setLoading(true);
     try {
+      const offset = (currentPage - 1) * limit;
       const params = {
         limit,
         offset,
@@ -97,10 +103,11 @@ function Browse() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    setOffset(0);
     
-    // 更新 URL 參數
     const params = new URLSearchParams();
+    
+    // Reset to first page
+    params.append('page', '1');
     
     if (searchQuery.trim()) params.append('q', searchQuery);
     if (filters.genres.length > 0) params.append('genres', filters.genres.join(','));
@@ -115,6 +122,7 @@ function Browse() {
   };
 
   const handleClear = () => {
+    // Reset all search states
     setSearchQuery('');
     setFilters({
       genres: [],
@@ -125,8 +133,12 @@ function Browse() {
       sort_by: 'score',
       order: 'desc'
     });
-    setOffset(0);
-    setSearchParams({});  // 清除 URL 參數
+    
+    // Close advanced search
+    setShowAdvanced(false);
+    
+    // Clear URL params and reset to page 1
+    setSearchParams({});
   };
 
   const handleFilterChange = (field, value) => {
@@ -136,60 +148,37 @@ function Browse() {
     }));
   };
 
-  // Remove individual filter from tags
   const handleRemoveFilter = (field) => {
     const newParams = new URLSearchParams(searchParams);
     
     if (field === 'searchQuery') {
       newParams.delete('q');
-      setSearchQuery('');
     } else if (field === 'sort') {
-      // Reset sort to default
       newParams.set('sort_by', 'score');
       newParams.set('order', 'desc');
-      setFilters(prev => ({
-        ...prev,
-        sort_by: 'score',
-        order: 'desc'
-      }));
     } else if (field === 'genres' || field === 'types' || field === 'years') {
-      // Clear array filters
       newParams.delete(field);
-      setFilters(prev => ({
-        ...prev,
-        [field]: []
-      }));
     } else {
-      // Clear single value filters
       newParams.delete(field);
-      setFilters(prev => ({
-        ...prev,
-        [field]: ''
-      }));
     }
     
-    // Reset to first page when removing filter
-    setOffset(0);
+    // Reset to first page
+    newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
   const handlePageChange = (pageNum) => {
-    const newOffset = (pageNum - 1) * limit;
-    setOffset(newOffset);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('page', pageNum.toString());
+    setSearchParams(newParams);
     window.scrollTo(0, 0);
   };
 
-  const currentPage = Math.floor(offset / limit) + 1;
+  // Calculate total pages
   const totalPages = Math.ceil(total / limit);
+  const isSearchMode = Array.from(searchParams.keys()).some(key => key !== 'page');
+  const offset = (currentPage - 1) * limit;
 
-  // Check if any filters are active
-  const hasActiveFilters = searchQuery || filters.genres.length > 0 || filters.min_score || 
-                          filters.max_score || filters.years.length > 0 || filters.types.length > 0;
-
-  // 判斷是否在搜尋模式
-  const isSearchMode = searchParams.toString().length > 0;
-
-  // Prepare filters object for FilterTags component
   const currentFilters = {
     searchQuery: searchParams.get('q') || '',
     genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
@@ -203,7 +192,7 @@ function Browse() {
 
   return (
     <div>
-      {/* Filter Tags Display - 只在有篩選條件時顯示 */}
+      {/* Filter Tags Display */}
       {isSearchMode && (
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg p-4 mb-6">
           <FilterTags
@@ -254,10 +243,9 @@ function Browse() {
         </div>
       )}
 
-      {/* Pagination Controls - 智能版 */}
+      {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8 mb-8">
-          {/* Previous Button */}
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -272,9 +260,7 @@ function Browse() {
             Previous
           </button>
 
-          {/* Page Selection - Dropdown or Input based on total pages */}
           <div className="flex items-center gap-2">
-            {/* Show dropdown if pages <= 20 */}
             {totalPages <= 20 ? (
               <>
                 <span className="text-gray-600">Page</span>
@@ -295,28 +281,21 @@ function Browse() {
               </>
             ) : (
               <>
-                {/* Show input if pages > 20 */}
                 <span className="text-gray-600">Page</span>
                 <input
                   type="number"
                   min="1"
                   max={totalPages}
-                  defaultValue={currentPage}
-                  onBlur={(e) => {
+                  value={currentPage}
+                  onChange={(e) => {
                     const value = Number(e.target.value);
                     if (value >= 1 && value <= totalPages) {
                       handlePageChange(value);
-                    } else {
-                      e.target.value = currentPage;
                     }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      const value = Number(e.target.value);
-                      if (value >= 1 && value <= totalPages) {
-                        handlePageChange(value);
-                        e.target.blur();
-                      }
+                      e.target.blur();
                     }
                   }}
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-purple-600"
@@ -328,7 +307,6 @@ function Browse() {
             )}
           </div>
 
-          {/* Next Button */}
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}

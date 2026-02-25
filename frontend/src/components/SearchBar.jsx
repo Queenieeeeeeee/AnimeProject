@@ -1,11 +1,12 @@
 // src/components/SearchBar.jsx - 完整多選版本
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getGenres, getRandomAnime } from '../services/api';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getGenres, getYears, getRandomAnime } from '../services/api';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
 function SearchBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,6 +14,7 @@ function SearchBar() {
   // Advanced search states
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [genres, setGenres] = useState([]);
+  const [years, setYears] = useState([]);
   const [filters, setFilters] = useState({
     genres: [],
     min_score: '',
@@ -26,6 +28,17 @@ function SearchBar() {
   // Random anime state
   const [isGettingRandom, setIsGettingRandom] = useState(false);
 
+  // Reset advanced search state when navigating away from Browse page
+  // OR when navigating to Browse without search params
+  useEffect(() => {
+    if (!location.pathname.includes('/browse')) {
+      setShowAdvanced(false);
+    } else if (location.pathname === '/browse' && location.search === '') {
+      // Also close when navigating to clean Browse page (no URL params)
+      setShowAdvanced(false);
+    }
+  }, [location.pathname, location.search]);
+
   // Type options for MultiSelect
   const typeOptions = [
     { id: 1, name: 'TV' },
@@ -35,22 +48,32 @@ function SearchBar() {
     { id: 5, name: 'Special' }
   ];
 
-  // Generate year options (1960 to current year + 1)
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from(
-    { length: currentYear - 1960 + 2 },
-    (_, i) => ({ id: i, name: String(currentYear + 1 - i) })
-  );
-
-  // Load genres when advanced search is opened
+  // Load genres and years when advanced search is opened
   const handleToggleAdvanced = async () => {
     setShowAdvanced(!showAdvanced);
-    if (!showAdvanced && genres.length === 0) {
-      try {
-        const response = await getGenres();
-        setGenres(response.data.data);
-      } catch (error) {
-        console.error('Error fetching genres:', error);
+    if (!showAdvanced) {
+      // Fetch genres if not already loaded
+      if (genres.length === 0) {
+        try {
+          const response = await getGenres();
+          setGenres(response.data.data);
+        } catch (error) {
+          console.error('Error fetching genres:', error);
+        }
+      }
+      // Fetch years if not already loaded
+      if (years.length === 0) {
+        try {
+          const response = await getYears();
+          // Convert year numbers to the format expected by MultiSelectDropdown
+          const yearOptions = response.data.data.map((year, index) => ({
+            id: index,
+            name: String(year)
+          }));
+          setYears(yearOptions);
+        } catch (error) {
+          console.error('Error fetching years:', error);
+        }
       }
     }
   };
@@ -90,6 +113,7 @@ function SearchBar() {
   };
 
   const handleClear = () => {
+    // Reset all state
     setSearchQuery('');
     setFilters({
       genres: [],
@@ -100,6 +124,13 @@ function SearchBar() {
       sort_by: 'score',
       order: 'desc'
     });
+    
+    // Close advanced search panel
+    setShowAdvanced(false);
+    
+    // Navigate to Browse page without any search parameters
+    // This will trigger Browse page to show default anime list
+    navigate('/browse');
   };
 
   const handleFilterChange = (field, value) => {
@@ -198,10 +229,10 @@ function SearchBar() {
             )}
           </div>
 
-          {/* Active Filters Tags */}
+          {/* Saved Filters Tags - Show when filters exist (whether advanced is open or closed) */}
           {hasActiveFilters && (
             <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-sm font-medium opacity-90">Active Filters:</span>
+              <span className="text-sm font-medium opacity-90">💾 Saved filters:</span>
               
               {searchQuery && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-sm backdrop-blur-sm border border-white/30">
@@ -341,7 +372,7 @@ function SearchBar() {
                 {/* Multi-Select Year Dropdown */}
                 <div>
                   <MultiSelectDropdown
-                    options={yearOptions}
+                    options={years}
                     selected={filters.years}
                     onChange={(selected) => handleFilterChange('years', selected)}
                     placeholder="Select years..."

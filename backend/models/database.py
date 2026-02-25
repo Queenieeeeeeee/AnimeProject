@@ -67,19 +67,19 @@ class Studio(Base):
     
     animes = relationship('Anime', secondary=anime_studios, back_populates='studios')
 
-# ========== 以下是新增的部分（FastAPI 需要用到） ==========
+# ========== （FastAPI Needed） ==========
 
-# 找到 anime.db 的路徑
+# Find anime.db path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATABASE_PATH = os.path.join(BASE_DIR, 'anime.db')
 
-# Create engine（連接資料庫）
+# Create engine（Connect Database）
 engine = create_engine(f'sqlite:///{DATABASE_PATH}')
 
-# Create session factory（建立 session 工廠）
+# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Dependency function（FastAPI 用來取得 database session）
+# Dependency function（FastAPI reach database session）
 def get_db():
     db = SessionLocal()
     try:

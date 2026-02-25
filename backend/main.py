@@ -1,11 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func  
+from sqlalchemy import func, select, or_, and_ 
 from models import get_db, Anime, Genre, anime_genres, Studio, anime_studios
 from datetime import date
-from fastapi import FastAPI, Query
-from sqlalchemy import select, or_, and_
 from typing import Optional
 
 app = FastAPI(
@@ -82,8 +80,11 @@ def get_anime_list(
     offset: int = 0,
     db: Session = Depends(get_db)
 ):
-    """Get the list of anime"""
-    animes = db.query(Anime).offset(offset).limit(limit).all()
+    """Get the list of anime (sorted by year, newest to oldest)"""
+    animes = db.query(Anime).order_by(
+        Anime.year.desc(),
+        Anime.score.desc()
+    ).offset(offset).limit(limit).all()
     total = db.query(Anime).count()
     
     result = []
@@ -229,6 +230,23 @@ def get_all_genres(db: Session = Depends(get_db)):
         "data": [{"id": g.id, "name": g.name} for g in genres]
     }
 
+@app.get("/api/years")
+def get_all_years(db: Session = Depends(get_db)):
+    """Get list of all years that have anime in database"""
+    # Get distinct years from database, ordered from newest to oldest
+    years = db.query(Anime.year).filter(
+        Anime.year != None
+    ).distinct().order_by(Anime.year.desc()).all()
+    
+    # Convert to list of integers
+    year_list = [year[0] for year in years if year[0] is not None]
+    
+    return {
+        "success": True,
+        "total": len(year_list),
+        "data": year_list
+    }
+
 @app.get("/api/search")
 def search_anime(
     q: Optional[str] = None,
@@ -340,86 +358,37 @@ def search_anime(
 # Discover Page Recommendations APIs
 # =============================================================================
 
-@app.get("/api/recommendations/popular")
-def get_popular_recommendations(
+@app.get("/api/recommendations/classics")
+def get_classics_recommendations(
     limit: int = 20,
     offset: int = 0,
     db: Session = Depends(get_db)
 ):
-    """Get popular anime based on member count"""
+    """Get all-time classic anime (older anime with high scores and popularity)"""
     
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
     
-    # First, get total count with same filters
-    total_query = db.query(Anime).filter(
-        Anime.members != None,
-        Anime.score != None,
-        Anime.score >= 6.0
-    )
-    total = total_query.count()
-    
-    # Then get paginated results
-    popular_anime = total_query.order_by(
-        Anime.members.desc()
-    ).offset(offset).limit(limit).all()
-    
-    results = []
-    for anime in popular_anime:
-        results.append({
-            "id": anime.id,
-            "mal_id": anime.mal_id,
-            "title": anime.title,
-            "title_english": anime.title_english,
-            "type": anime.type,
-            "episodes": anime.episodes,
-            "score": anime.score,
-            "year": anime.year,
-            "season": anime.season,
-            "members": anime.members,
-            "favorites": anime.favorites,
-            "image_url": anime.image_url,
-            "synopsis": anime.synopsis,
-            "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
-            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
-        })
-    
-    return {
-        "success": True,
-        "category": "popular",
-        "total": total,  # This is the total count in database
-        "limit": limit,
-        "offset": offset,
-        "data": results,
-        "message": f"Retrieved {len(results)} popular anime"
-    }
-
-@app.get("/api/recommendations/top-rated")
-def get_top_rated_recommendations(
-    limit: int = 20,
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Get top rated anime"""
-    
-    if limit < 1 or limit > 100:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
+    current_year = date.today().year
+    classics_year_threshold = current_year - 5  # Anime from 5+ years ago
     
     # First, get total count with same filters
     total_query = db.query(Anime).filter(
-        Anime.score >= 8.0,
-        Anime.members >= 50000
+        Anime.year <= classics_year_threshold,
+        Anime.score >= 7.5,
+        Anime.members >= 100000,
+        Anime.year != None
     )
     total = total_query.count()
-
-    # Then get paginated results
-    top_rated = total_query.order_by(
+    
+    # Then get paginated results - sorted by score (highest first)
+    classics = total_query.order_by(
         Anime.score.desc(),
         Anime.members.desc()
     ).offset(offset).limit(limit).all()
     
     results = []
-    for anime in top_rated:
+    for anime in classics:
         results.append({
             "id": anime.id,
             "mal_id": anime.mal_id,
@@ -440,16 +409,81 @@ def get_top_rated_recommendations(
     
     return {
         "success": True,
-        "category": "top-rated",
+        "category": "classics",
         "criteria": {
-            "min_score": 8.0,
+            "max_year": classics_year_threshold,
+            "min_score": 7.5,
+            "min_members": 100000
+        },
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "data": results,
+        "message": f"Retrieved {len(results)} classic anime"
+    }
+
+@app.get("/api/recommendations/recent-hits")
+def get_recent_hits_recommendations(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """Get recent popular hits (anime from last 3 years with high engagement)"""
+    
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
+    
+    current_year = date.today().year
+    min_year = current_year - 3  # Last 3 years
+    
+    # First, get total count with same filters
+    total_query = db.query(Anime).filter(
+        Anime.year >= min_year,
+        Anime.score >= 7.0,
+        Anime.members >= 50000,
+        Anime.year != None
+    )
+    total = total_query.count()
+
+    # Then get paginated results - sorted by score (highest first)
+    recent_hits = total_query.order_by(
+        Anime.score.desc(),
+        Anime.members.desc()
+    ).offset(offset).limit(limit).all()
+    
+    results = []
+    for anime in recent_hits:
+        results.append({
+            "id": anime.id,
+            "mal_id": anime.mal_id,
+            "title": anime.title,
+            "title_english": anime.title_english,
+            "type": anime.type,
+            "episodes": anime.episodes,
+            "score": anime.score,
+            "year": anime.year,
+            "season": anime.season,
+            "members": anime.members,
+            "favorites": anime.favorites,
+            "image_url": anime.image_url,
+            "synopsis": anime.synopsis,
+            "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
+            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
+        })
+    
+    return {
+        "success": True,
+        "category": "recent-hits",
+        "criteria": {
+            "min_year": min_year,
+            "min_score": 7.0,
             "min_members": 50000
         },
         "total": total,
         "limit": limit,
         "offset": offset,
         "data": results,
-        "message": f"Retrieved {len(results)} top rated anime"
+        "message": f"Retrieved {len(results)} recent hit anime"
     }
 
 @app.get("/api/recommendations/hidden-gems")
@@ -458,41 +492,29 @@ def get_hidden_gems_recommendations(
     offset: int = 0,
     db: Session = Depends(get_db)
 ):
-    """Get hidden gem anime"""
+    """Get hidden gem anime - high quality but underrated"""
     
     if limit < 1 or limit > 100:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
     
-    # Get all matching anime first
-    hidden_gems = db.query(Anime).filter(
-        Anime.score >= 7.5,
-        Anime.members >= 10000,
-        Anime.members <= 100000,
-        Anime.favorites != None
-    ).all()
+    # First, get total count with same filters
+    total_query = db.query(Anime).filter(
+        Anime.score >= 8.0,              # Very high quality (stricter than 7.5)
+        Anime.popularity >= 5000,        # Not too popular (rank >= 5000)
+        Anime.members >= 10000,          # Has some audience base
+        Anime.favorites != None,
+        Anime.rank != None               # Exclude unranked anime
+    )
+    total = total_query.count()
     
-    # Calculate favorite ratios
-    gems_with_ratio = []
-    for anime in hidden_gems:
-        if anime.members > 0:
-            fav_ratio = anime.favorites / anime.members
-            gems_with_ratio.append({
-                "anime": anime,
-                "fav_ratio": fav_ratio
-            })
-    
-    # Sort by favorite ratio
-    gems_with_ratio.sort(key=lambda x: x["fav_ratio"], reverse=True)
-    
-    # Get total count
-    total = len(gems_with_ratio)
-    
-    # Apply pagination
-    paginated_gems = gems_with_ratio[offset:offset + limit]
+    # Then get paginated results - sorted by score (highest first)
+    hidden_gems = total_query.order_by(
+        Anime.score.desc(),
+        Anime.members.desc()
+    ).offset(offset).limit(limit).all()
     
     results = []
-    for item in gems_with_ratio[:limit]:
-        anime = item["anime"]
+    for anime in hidden_gems:
         results.append({
             "id": anime.id,
             "mal_id": anime.mal_id,
@@ -505,227 +527,27 @@ def get_hidden_gems_recommendations(
             "season": anime.season,
             "members": anime.members,
             "favorites": anime.favorites,
+            "popularity": anime.popularity,  # Include popularity rank for display
             "image_url": anime.image_url,
             "synopsis": anime.synopsis,
             "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
-            "studios": [{"id": s.id, "name": s.name} for s in anime.studios],
-            "favorites_ratio": round(item["fav_ratio"] * 100, 2)
+            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
         })
     
     return {
         "success": True,
         "category": "hidden-gems",
         "criteria": {
-            "min_score": 7.5,
+            "min_score": 8.0,
+            "min_popularity_rank": 5000,
             "min_members": 10000,
-            "max_members": 100000
+            "must_have_rank": True
         },
         "total": total,
         "limit": limit,
         "offset": offset,
         "data": results,
         "message": f"Retrieved {len(results)} hidden gem anime"
-    }
-
-@app.get("/api/recommendations/latest")
-def get_latest_recommendations(
-    limit: int = 20,
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Get latest anime"""
-    
-    if limit < 1 or limit > 100:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
-    
-    current_year = date.today().year
-    years = [current_year, current_year - 1]
-    
-    # Count total first
-    total_query = db.query(Anime).filter(
-        Anime.year.in_(years),
-        Anime.score >= 6.5
-    )
-    total = total_query.count()
-
-    latest = total_query.order_by(
-        Anime.year.desc(),
-        Anime.members.desc()
-    ).offset(offset).limit(limit).all()
-    
-    results = []
-    for anime in latest:
-        results.append({
-            "id": anime.id,
-            "mal_id": anime.mal_id,
-            "title": anime.title,
-            "title_english": anime.title_english,
-            "type": anime.type,
-            "episodes": anime.episodes,
-            "score": anime.score,
-            "year": anime.year,
-            "season": anime.season,
-            "members": anime.members,
-            "favorites": anime.favorites,
-            "image_url": anime.image_url,
-            "synopsis": anime.synopsis,
-            "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
-            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
-        })
-    
-    return {
-        "success": True,
-        "category": "latest",
-        "criteria": {
-            "years": years,
-            "min_score": 6.5
-        },
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "data": results,
-        "message": f"Retrieved {len(results)} latest anime"
-    }
-
-@app.get("/api/recommendations/trending")
-def get_trending_recommendations(
-    limit: int = 20,
-    offset: int = 0,
-    db: Session = Depends(get_db)
-):
-    """Get trending anime"""
-    
-    if limit < 1 or limit > 100:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
-    
-    current_year = date.today().year
-    years = [current_year, current_year - 1]
-    
-    # Count total first
-    total_query = db.query(Anime).filter(
-        Anime.year.in_(years),
-        Anime.score >= 7.0,
-        Anime.members >= 50000
-    )
-    total = total_query.count()
-
-    # Get paginated results
-    trending = total_query.order_by(
-        Anime.members.desc()
-    ).offset(offset).limit(limit).all()
-    
-    results = []
-    for anime in trending:
-        results.append({
-            "id": anime.id,
-            "mal_id": anime.mal_id,
-            "title": anime.title,
-            "title_english": anime.title_english,
-            "type": anime.type,
-            "episodes": anime.episodes,
-            "score": anime.score,
-            "year": anime.year,
-            "season": anime.season,
-            "members": anime.members,
-            "favorites": anime.favorites,
-            "image_url": anime.image_url,
-            "synopsis": anime.synopsis,
-            "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
-            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
-        })
-    
-    return {
-        "success": True,
-        "category": "trending",
-        "criteria": {
-            "years": years,
-            "min_score": 7.0,
-            "min_members": 50000
-        },
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "data": results,
-        "message": f"Retrieved {len(results)} trending anime"
-    }
-
-@app.get("/api/recommendations/genre/{genre_name}")
-def get_genre_recommendations(
-    genre_name: str,
-    limit: int = 20,
-    offset: int = 0, 
-    db: Session = Depends(get_db)
-):
-    """Get anime by genre"""
-    
-    if limit < 1 or limit > 100:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
-    
-    genre = db.query(Genre).filter(
-        func.lower(Genre.name) == func.lower(genre_name)
-    ).first()
-    
-    if not genre:
-        raise HTTPException(status_code=404, detail=f"Genre '{genre_name}' not found")
-    
-    # Count total first
-    total_query = db.query(Anime).join(
-        anime_genres, Anime.id == anime_genres.c.anime_id
-    ).filter(
-        anime_genres.c.genre_id == genre.id,
-        Anime.score >= 6.5
-    )
-    total = total_query.count()
-    
-    # Get paginated results
-    genre_anime = total_query.order_by(
-        Anime.score.desc(),
-        Anime.members.desc()
-    ).offset(offset).limit(limit).all()
-    
-    results = []
-    for anime in genre_anime:
-        results.append({
-            "id": anime.id,
-            "mal_id": anime.mal_id,
-            "title": anime.title,
-            "title_english": anime.title_english,
-            "type": anime.type,
-            "episodes": anime.episodes,
-            "score": anime.score,
-            "year": anime.year,
-            "season": anime.season,
-            "members": anime.members,
-            "favorites": anime.favorites,
-            "image_url": anime.image_url,
-            "synopsis": anime.synopsis,
-            "genres": [{"id": g.id, "name": g.name} for g in anime.genres],
-            "studios": [{"id": s.id, "name": s.name} for s in anime.studios]
-        })
-    
-    return {
-        "success": True,
-        "category": "genre",
-        "genre": genre.name,
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-        "data": results,
-        "message": f"Retrieved {len(results)} anime in {genre.name} genre"
-    }
-
-@app.get("/api/recommendations/genres/list")
-def get_genres_list(db: Session = Depends(get_db)):
-    """Get list of all genres"""
-    
-    genres = db.query(Genre).filter(
-        Genre.name != "Hentai"
-    ).order_by(Genre.name).all()
-    
-    return {
-        "success": True,
-        "total": len(genres),
-        "data": [{"id": g.id, "name": g.name} for g in genres]
     }
 
 @app.get("/api/recommendations/studio/{studio_name}")

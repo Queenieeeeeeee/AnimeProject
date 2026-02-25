@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import AnimeCard from './AnimeCard';
+import { API_BASE_URL } from '../services/api';
+
+// Utility function to add delay between requests
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 function RelatedWorks({ malId }) {
   const [relations, setRelations] = useState([]);
@@ -33,6 +37,7 @@ function RelatedWorks({ malId }) {
     setError(false);
 
     try {
+      // Fetch relations from Jikan API
       const jikanResponse = await fetch(`https://api.jikan.moe/v4/anime/${malId}/relations`);
       
       if (!jikanResponse.ok) {
@@ -42,60 +47,47 @@ function RelatedWorks({ malId }) {
       const jikanData = await jikanResponse.json();
       const relationsData = jikanData.data || [];
 
+      // Process each relation group
       const processedRelations = await Promise.all(
         relationsData.map(async (relationGroup) => {
           const relationType = relationGroup.relation;
           const animeEntries = relationGroup.entry.filter(entry => entry.type === 'anime');
 
-          const entriesWithDetails = await Promise.all(
-            animeEntries.map(async (entry) => {
-              try {
-                const response = await fetch(`http://localhost:8000/api/anime/mal/${entry.mal_id}`);
+          // ✅ FIXED: Fetch details sequentially with delay to avoid rate limiting
+          const entriesInDatabase = [];
+          
+          for (const entry of animeEntries) {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/anime/mal/${entry.mal_id}`);
+              
+              if (response.ok) {
+                const animeData = await response.json();
                 
-                if (response.ok) {
-                  const animeData = await response.json();
-                  
-                  if (animeData && animeData.id) {
-                    return {
-                      ...animeData,
-                      inDatabase: true,
-                    };
-                  }
+                // Only add if anime exists in our database
+                if (animeData && animeData.id) {
+                  entriesInDatabase.push(animeData);
                 }
-
-                return {
-                  id: null,
-                  mal_id: entry.mal_id,
-                  title: entry.name,
-                  title_english: null,
-                  image_url: null,
-                  score: null,
-                  year: null,
-                  type: entry.type,
-                  inDatabase: false,
-                  malUrl: entry.url,
-                };
-              } catch (err) {
-                console.error(`Error fetching anime ${entry.mal_id}:`, err);
-                return {
-                  id: null,
-                  mal_id: entry.mal_id,
-                  title: entry.name,
-                  image_url: null,
-                  inDatabase: false,
-                  malUrl: entry.url,
-                };
               }
-            })
-          );
+              
+              // Add small delay between requests to avoid rate limiting
+              // Only delay if there are more entries to fetch
+              if (animeEntries.indexOf(entry) < animeEntries.length - 1) {
+                await delay(100); // 100ms delay between requests
+              }
+            } catch (err) {
+              console.error(`Error fetching anime ${entry.mal_id}:`, err);
+              // Continue to next entry on error
+            }
+          }
 
           return {
             relationType,
-            entries: entriesWithDetails,
+            entries: entriesInDatabase,
           };
         })
       );
 
+      // Only keep relation groups that have at least one anime in our database
       const filteredRelations = processedRelations.filter(group => group.entries.length > 0);
       setRelations(filteredRelations);
     } catch (err) {
@@ -109,7 +101,7 @@ function RelatedWorks({ malId }) {
   if (loading) {
     return (
       <div className="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4">Related Works</h2>
+        <h2 className="text-2xl font-bold mb-4">📖 Related Works</h2>
         <div className="text-center py-8 text-gray-500">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           Loading related works...
@@ -121,7 +113,7 @@ function RelatedWorks({ malId }) {
   if (error) {
     return (
       <div className="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4">Related Works</h2>
+        <h2 className="text-2xl font-bold mb-4">📖 Related Works</h2>
         <div className="text-center py-8 text-red-500">
           Failed to load related works. Please try again later.
         </div>
@@ -129,6 +121,7 @@ function RelatedWorks({ malId }) {
     );
   }
 
+  // Don't show the section if there are no related works in our database
   if (relations.length === 0) {
     return null;
   }
@@ -144,47 +137,15 @@ function RelatedWorks({ malId }) {
           </h3>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {relationGroup.entries.map((anime) => {
-              if (anime.inDatabase) {
-                return (
-                  <AnimeCard
-                    key={anime.id}
-                    anime={anime}
-                    variant="compact"
-                    showYear={false}
-                    showEpisodes={false}
-                  />
-                );
-              }
-
-              return (
-                <a
-                  key={anime.mal_id}
-                  href={anime.malUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white rounded-lg shadow overflow-hidden hover:shadow-xl transition cursor-pointer"
-                >
-                  <div className="relative overflow-hidden rounded-t-lg flex-shrink-0">
-                    <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-                      <div className="text-center p-4">
-                        <div className="text-4xl mb-2">📺</div>
-                        <p className="text-xs text-gray-500">Not in Database</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-2">
-                    <h3 className="font-semibold text-xs line-clamp-2 mb-1" title={anime.title}>
-                      {anime.title}
-                    </h3>
-                    <div className="text-xs text-blue-500 hover:text-blue-700">
-                      View on MyAnimeList →
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+            {relationGroup.entries.map((anime) => (
+              <AnimeCard
+                key={anime.id}
+                anime={anime}
+                variant="compact"
+                showYear={false}
+                showEpisodes={false}
+              />
+            ))}
           </div>
         </div>
       ))}

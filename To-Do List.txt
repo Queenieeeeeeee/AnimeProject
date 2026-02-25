@@ -4,7 +4,10 @@ Backend: uvicorn main:app --reload
 
 *To-do List*
 1.clear search 沒有真的clear 不會clear 到search anime by title 那個place holder 那邊
-4.續作的版面滿神奇的 並不會列出全部 比如說part3 只會出現part2 or part4
+2.advanced search (跳到其他頁面他會一直存在)
+3.discover sorted我不太喜歡 他的簡介要重寫
+4.update and pull new data
+
  
 *Info*
 Frontend: React + Vite + Tailwind CSS (單頁應用)
