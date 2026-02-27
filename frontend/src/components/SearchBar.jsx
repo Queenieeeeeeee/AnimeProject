@@ -187,7 +187,7 @@ function SearchBar() {
             />
             <button
               type="submit"
-              className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+              className="px-3 sm:px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition text-sm sm:text-base flex-shrink-0"
             >
               Search
             </button>
