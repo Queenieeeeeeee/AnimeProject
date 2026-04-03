@@ -304,7 +304,7 @@ def sync_anime_by_years(start_year, end_year):
 
 if __name__ == "__main__":
     # ========== 直接設定年份範圍 ==========
-    START_YEAR = 2024
+    START_YEAR = 2025
     END_YEAR   = 2026
     # ======================================
 

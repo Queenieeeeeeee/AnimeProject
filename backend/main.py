@@ -44,12 +44,11 @@ def get_latest_anime(
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
-    """Get the latest anime - for homepage featured section"""
-    
     animes = db.query(Anime).filter(
-        Anime.year >= date.today().year  
+        Anime.aired_from != None,
+        Anime.image_url != None
     ).order_by(
-        Anime.year.desc(),
+        Anime.aired_from.desc()
     ).limit(limit).all()
     
     result = []

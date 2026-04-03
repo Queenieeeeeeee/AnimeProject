@@ -1,0 +1,287 @@
+✅ Dashboard 1: Overview
+目的： 提供整體數據概覽
+* 3 KPI: Total anime count, Average score, Studio Count
+* Anime Releases by Year
+* Anime Seasonal Distribution
+* Distribution charts: Genre Distribution, Score Distribution
+✅ Dashboard 2: Trends Analysis
+目的： 分析時間趨勢和演變
+* Score trends over time
+* Genre evolution (AREA AND LINE CHART)
+* Top 20 anime by year
+✅ Dashboard 3: Genre & Studio Analysis（類型與製作公司分析）
+目的： 深入分析 genres 和 studios 的表現
+* Top 10 Studios by Production Count（橫條圖）
+* Top 10 Studios by Average Score（橫條圖）
+* Genre vs Score Distribution（Box Plot）
+* Studio Production Trends Over Time（折線圖，Top 5）
+✅ Dashboard 4: Popularity & Engagement（人氣與參與度）
+目的： 分析用戶參與和人氣指標
+* Members vs Score（散點圖 + 趨勢線）
+* Favorites vs Score（散點圖 + 趨勢線）
+* Top 20 Most Popular Anime（橫條圖，按 members 排序）
+* Hidden Gems（表格或散點圖）
+
+📊 Anime Database Analysis - Dashboard Summary
+🎯 Project Overview
+Comprehensive analysis of 16,105+ anime titles from MyAnimeList, featuring 4 interactive dashboards that provide business intelligence insights into the anime industry.
+Data Source: MyAnimeList (via Jikan API)
+Tools: Tableau Public, Python (data collection), SQLite
+Period Covered: 2004-2026
+
+📈 Dashboard 1: Overview
+Purpose:
+Provide a high-level snapshot of the anime database, showing key metrics and fundamental distributions.
+Key Visualizations:
+
+3 KPI Cards
+
+Total Anime: 16,105 titles
+Average Score: 6.62/10
+Studio Count: 1,011 studios
+
+
+Anime Releases by Year (Line Chart)
+Seasonal Distribution (Bar Chart)
+Genre Distribution (Treemap)
+Score Distribution (Histogram)
+
+Key Insights:
+✅ Production Trends:
+
+Peak production year: ~2016-2017 (982+ titles)
+Significant decline in 2025-2026 (recent data still incomplete)
+Steady growth from 2004 to mid-2010s
+
+✅ Seasonal Patterns:
+
+Spring is the most popular release season (~1,420 titles)
+Fall follows closely (~1,288 titles)
+Relatively even distribution across all four seasons
+i guess is because of their back to school season(?) (請幫我看看這是不是真的)
+
+✅ Genre Landscape:
+
+Comedy dominates with 5,409 titles (33.6%)
+Action (3,298 titles) and Fantasy (3,897 titles) are also popular
+Clear preference for lighthearted and action-oriented content
+
+✅ Quality Distribution:
+
+Most anime score between 6.0-7.5
+Few titles achieve 9.0+ (elite tier)
+Score distribution is slightly right-skewed (more high-quality than low-quality)
+
+Business Implications:
+
+Spring season offers the most competition but also the largest audience (為什麼是largest audience?)
+Comedy and Action genres have proven market demand
+Average score of 6.62 suggests quality varies widely—opportunity for differentiation
+
+
+📉 Dashboard 2: Trends Analysis
+Purpose:
+Analyze temporal patterns, genre evolution, and identify top-performing anime across different time periods.
+Key Visualizations:
+
+Average Score Trends Over Time (Interactive)
+Top 20 Anime Year (Bar Chart with Year Filter)
+Genre Evolution Over Time (Area Chart)
+Genre Trends (Line Chart)
+
+Key Insights:
+✅ Score Trends:
+
+Average scores have remained relatively stable (~6.5-6.8) over the years
+No significant quality improvement or decline
+Consistency suggests established industry standards
+
+✅ Genre Evolution:
+
+Comedy has maintained dominance throughout all periods
+Action and Fantasy have grown steadily
+Slice of Life has gained popularity in recent years
+Traditional genres remain stable while niche genres fluctuate
+
+✅ Top Performers:
+
+Classic titles like Gintama, Death Note, Fullmetal Alchemist consistently rank high
+Mushishi, Code Geass demonstrate that quality storytelling transcends genre
+Top anime typically score 8.5-9.2+ 不過如果是看整體性 sousou no frieren and chainsaw man movie:reze-hen 超越了fullmetal alcemist and gintama!!!
+
+Business Implications:
+
+Genre preferences are stable—safe to invest in proven categories
+Quality content (8.0+ score) creates lasting value and fan loyalty
+Viewer expectations have remained consistent over time
+
+
+🎬 Dashboard 3: Genre & Studio Analysis
+Purpose:
+Deep dive into content creators and genre performance, identifying industry leaders and quality patterns.
+Key Visualizations:
+
+Top 20 Studios by Average Score (Bar Chart)
+Top 10 Studios by Production Count (Bar Chart)
+Genre vs Score Distribution (Box Plot with Outliers)
+Top 3 Studio Production Trends (Line Chart)
+
+Key Insights:
+✅ Studio Quality:
+
+Kyoto Animation achieves highest avg score (7.51) with 114 titles
+Motion Magic (score 7.68, 18 titles) and Shuka (score 7.64, 23 titles) excel with smaller catalogs
+Quality ≠ Quantity (high-output studios don't always score highest)
+
+✅ Studio Productivity:
+
+Toei Animation leads with 343 titles (most prolific)
+Sunrise (308), J.C.Staff (289) are also highly productive
+Top 10 studios account for ~15% of all anime production
+
+✅ Genre Quality Patterns (Box Plot Analysis):
+
+Mystery and Drama genres show highest median scores
+Comedy has the widest score variance (hit-or-miss)
+Sci-Fi has many outliers (low scores)
+
+✅ Production Trends:
+
+Major studios show fluctuating production volumes
+No clear long-term growth/decline for individual studios
+Industry is competitive with no single dominant player
+
+Business Implications:
+
+Quality strategy: Partner with boutique studios like Kyoto Animation
+Volume strategy: Leverage prolific studios like Toei Animation
+Genre choice significantly impacts score potential
+Mystery/Drama genres offer higher quality floor
+
+
+👥 Dashboard 4: User Engagement & Popularity Analysis
+Purpose:
+Explore relationships between audience engagement metrics (members, favorites) and quality (score), uncovering hidden gems and popularity patterns.
+Key Visualizations:
+
+Member Count vs Score (Scatter Plot with Trend Line)
+Favorites vs Score (Scatter Plot with Trend Line)
+Top 20 Most Popular Anime (Bar Chart)
+Hidden Gems (Table: Score ≥8.0, Popularity >5000)
+
+Key Insights:
+✅ Popularity-Quality Relationship:
+
+Strong positive correlation between Members/Favorites and Score
+Higher member count generally indicates higher quality
+Trend line shows clear upward trajectory
+Few "overhyped" anime (high popularity, low score)
+
+✅ Most Popular Titles: (based on members)
+
+AOT is the most popular one
+Fullmetal Alchemist: Brotherhood leads with 3,603K members
+Death Note, One Punch Man, Sword Art Online all exceed 3M members
+Popular anime tend to be mainstream shonen or highly accessible
+
+✅ Hidden Gems Discovered:
+
+20+ titles with score ≥8.0 but low popularity (rank >5,000)
+Examples: Doupo Cangqiong: San Nian Zhi Yue (8.55), Chiikawa (8.47)
+Many are Chinese donghua or niche Japanese productions
+Excellent quality but limited marketing/awareness
+
+✅ Fan Engagement:
+
+Favorites vs Score shows even stronger correlation than Members
+Users who "favorite" anime are more discerning
+High-quality anime retain dedicated fan bases
+
+Business Implications:
+
+Marketing matters: Great content needs visibility to succeed
+Hidden gems represent untapped IPs for licensing/promotion
+Quality is discoverable: Good anime eventually find their audience
+Niche markets: Chinese anime (donghua) shows high quality potential
+
+
+🎯 Overall Key Findings
+Industry Insights:
+
+Market Maturity:
+
+Stable production volumes and consistent quality standards
+Clear genre preferences (Comedy, Action, Fantasy)
+Seasonal patterns are predictable
+
+
+Quality Drivers:
+
+Studio reputation matters but isn't everything
+Genre selection significantly impacts score potential
+Mystery/Drama genres have higher quality floors
+
+
+Success Factors:
+
+Popularity strongly correlates with quality
+Spring season offers maximum exposure
+Established studios dominate but boutique studios excel in quality
+
+
+Opportunities:
+
+Hidden gems represent undervalued content
+Niche genres (Slice of Life, Mystery) growing
+International productions (Chinese donghua) emerging
+
+
+
+
+💡 Business Recommendations
+For Content Creators:
+
+✅ Invest in Mystery or Drama for higher quality potential
+✅ Target Spring season for maximum audience reach
+✅ Consider partnerships with quality-focused studios (Kyoto Animation)
+
+For Distributors/Platforms:
+
+✅ Promote Hidden Gems to differentiate catalog
+✅ Focus on 8.0+ scored content for retention
+✅ Monitor Chinese productions for licensing opportunities
+
+For Investors:
+
+✅ Quality > Quantity: High scores drive long-term value
+✅ Studio track record matters—analyze portfolio consistency
+✅ Emerging markets (donghua) show growth potential
+
+
+📊 Technical Highlights
+Data Processing:
+
+Cleaned and normalized 16,105 records
+Many-to-many relationships (anime ↔ genres, anime ↔ studios)
+Handled missing data (30% of anime lack scores)
+
+Statistical Analysis:
+
+Box plots for distribution analysis
+Correlation analysis (Members/Favorites vs Score)
+Trend line analysis for temporal patterns
+
+Visualization Techniques:
+
+Interactive filters for temporal exploration
+Color-coded outliers for pattern recognition
+Multiple chart types for different analytical perspectives
+
+
+🎓 Skills Demonstrated
+
+✅ Data Analysis: Statistical analysis, pattern recognition, outlier detection
+✅ Business Intelligence: KPI development, trend analysis, actionable insights
+✅ Data Visualization: Tableau proficiency, dashboard design, storytelling
+✅ Database Design: Many-to-many relationships, data normalization
+✅ Domain Knowledge: Understanding anime industry dynamics
